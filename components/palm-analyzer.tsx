@@ -31,6 +31,33 @@ const PROGRESS_STEPS = [
   { after: 35, label: "正在整理你的文化报告" },
 ];
 
+type AnalyzeResponse = {
+  report?: PalmReport;
+  error?: {
+    message?: string;
+    type?: string;
+    status?: number;
+  };
+};
+
+function safeParseAnalyzeResponse(text: string): AnalyzeResponse | null {
+  if (!text.trim()) return null;
+
+  try {
+    return JSON.parse(text) as AnalyzeResponse;
+  } catch {
+    return null;
+  }
+}
+
+function getFallbackErrorMessage(status: number) {
+  if (status === 504) return TIMEOUT_MESSAGE;
+  if (status === 503) return "AI 服务暂时不可用，请稍后重试。";
+  if (status === 429) return "当前体验人数较多，请稍后重试。";
+  if (status >= 500) return "分析服务暂时异常，请稍后重试。";
+  return "分析暂时失败，请检查照片后重试。";
+}
+
 export function PalmAnalyzer() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
@@ -119,8 +146,20 @@ export function PalmAnalyzer() {
         body,
         signal: controller.signal,
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "分析失败");
+
+      const responseText = await response.text();
+      const data = safeParseAnalyzeResponse(responseText);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error?.message || getFallbackErrorMessage(response.status),
+        );
+      }
+
+      if (!data?.report) {
+        throw new Error("分析结果格式异常，请稍后重试。");
+      }
+
       setReport(data.report);
       requestAnimationFrame(() =>
         document.getElementById("report")?.scrollIntoView({ behavior: "smooth" }),

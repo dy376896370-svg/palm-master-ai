@@ -26,6 +26,19 @@ const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 8;
 const requestLog = new Map<string, number[]>();
 
+function jsonError(message: string, type: string, status: number) {
+  return Response.json(
+    {
+      error: {
+        message,
+        type,
+        status,
+      },
+    },
+    { status },
+  );
+}
+
 function getClientId(request: Request) {
   const forwarded = request.headers.get("x-forwarded-for");
   return forwarded?.split(",")[0]?.trim() || "local";
@@ -67,46 +80,31 @@ function hasValidImageSignature(bytes: Buffer, type: string) {
 export async function POST(request: Request) {
   try {
     if (isRateLimited(getClientId(request))) {
-      return Response.json(
-        { error: "体验人数较多，请十分钟后再试。" },
-        { status: 429 },
-      );
+      return jsonError("体验人数较多，请十分钟后再试。", "rate_limited", 429);
     }
 
     if (!process.env.OPENAI_API_KEY) {
-      return Response.json(
-        { error: "服务尚未配置 OPENAI_API_KEY。" },
-        { status: 503 },
-      );
+      return jsonError("API Key 未配置", "missing_openai_api_key", 503);
     }
 
     const formData = await request.formData();
     const image = formData.get("image");
 
     if (!(image instanceof File)) {
-      return Response.json({ error: "请选择一张手掌照片。" }, { status: 400 });
+      return jsonError("请选择一张手掌照片。", "missing_image", 400);
     }
 
     if (!ALLOWED_TYPES.has(image.type)) {
-      return Response.json(
-        { error: "仅支持 JPG、PNG 或 WebP 图片。" },
-        { status: 415 },
-      );
+      return jsonError("仅支持 JPG、PNG 或 WebP 图片。", "unsupported_image_type", 415);
     }
 
     if (image.size > MAX_FILE_SIZE) {
-      return Response.json(
-        { error: "图片不能超过 8MB，请压缩后重试。" },
-        { status: 413 },
-      );
+      return jsonError("图片不能超过 8MB，请压缩后重试。", "image_too_large", 413);
     }
 
     const bytes = Buffer.from(await image.arrayBuffer());
     if (!hasValidImageSignature(bytes, image.type)) {
-      return Response.json(
-        { error: "图片文件无法识别，请重新选择原始照片。" },
-        { status: 415 },
-      );
+      return jsonError("图片文件无法识别，请重新选择原始照片。", "invalid_image_file", 415);
     }
     const imageUrl = `data:${image.type};base64,${bytes.toString("base64")}`;
     const proxyAgent = process.env.OPENAI_PROXY_URL
@@ -145,9 +143,10 @@ export async function POST(request: Request) {
     });
 
     if (!response.output_parsed) {
-      return Response.json(
-        { error: "本次分析未能生成完整报告，请换一张更清晰的照片重试。" },
-        { status: 502 },
+      return jsonError(
+        "本次分析未能生成完整报告，请换一张更清晰的照片重试。",
+        "empty_ai_report",
+        502,
       );
     }
 
@@ -188,54 +187,56 @@ export async function POST(request: Request) {
         /timed?\s*out|timeout|aborted/i.test(error.message));
 
     if (isTimeout) {
-      return Response.json({ error: TIMEOUT_MESSAGE }, { status: 504 });
+      return jsonError(TIMEOUT_MESSAGE, "timeout", 504);
     }
 
     if (error instanceof APIConnectionError) {
-      return Response.json(
-        { error: "暂时无法连接 AI 服务，请稍后重试。" },
-        { status: 502 },
-      );
+      return jsonError("暂时无法连接 AI 服务，请稍后重试。", "openai_connection_error", 502);
     }
 
     if (error instanceof APIError) {
       if (error.status === 401 || error.status === 403) {
-        return Response.json(
-          { error: "AI 服务配置暂时不可用，请联系网站维护者。" },
-          { status: 503 },
+        return jsonError(
+          "AI 服务配置暂时不可用，请联系网站维护者。",
+          "openai_auth_error",
+          503,
         );
       }
 
       if (error.status === 429) {
         const quotaExceeded = /quota|billing|credit/i.test(error.message);
-        return Response.json(
-          {
-            error: quotaExceeded
-              ? "今日 AI 体验额度已用完，请稍后再来。"
-              : "当前体验人数较多，请稍后重试。",
-          },
-          { status: 429 },
+        return jsonError(
+          quotaExceeded
+            ? "今日 AI 体验额度已用完，请稍后再来。"
+            : "当前体验人数较多，请稍后重试。",
+          quotaExceeded ? "openai_quota_exceeded" : "openai_rate_limited",
+          429,
         );
       }
 
       if (error.status >= 500) {
-        return Response.json(
-          { error: "AI 服务暂时繁忙，系统已自动重试，请稍后再试。" },
-          { status: 502 },
+        return jsonError(
+          "AI 服务暂时繁忙，系统已自动重试，请稍后再试。",
+          "openai_server_error",
+          502,
         );
       }
 
       if (error.status === 400) {
-        return Response.json(
-          { error: "AI 无法完成本次结构化分析，请换一张清晰照片重试。" },
-          { status: 502 },
+        return jsonError(
+          "AI 无法完成本次结构化分析，请换一张清晰照片重试。",
+          "openai_bad_request",
+          502,
         );
       }
+
+      return jsonError(
+        "AI 服务返回异常，请稍后重试。",
+        "openai_api_error",
+        error.status ?? 502,
+      );
     }
 
-    return Response.json(
-      { error: "分析服务暂时异常，请稍后重试。" },
-      { status: 500 },
-    );
+    return jsonError("分析服务暂时异常，请稍后重试。", "internal_error", 500);
   }
 }
