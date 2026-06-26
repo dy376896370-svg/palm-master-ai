@@ -6,7 +6,7 @@ type LineTemplate = {
   id: PalmLine["id"];
   name: PalmLine["name"];
   color: string;
-  path: string;
+  fallbackPoints: { x: number; y: number }[];
 };
 
 const LINE_TEMPLATES: LineTemplate[] = [
@@ -14,39 +14,65 @@ const LINE_TEMPLATES: LineTemplate[] = [
     id: "life-line",
     name: "生命线",
     color: "#f1a35b",
-    path: "M 42 35 C 29 38, 24 50, 28 65 C 31 76, 40 84, 48 88",
+    fallbackPoints: [
+      { x: 0.42, y: 0.35 },
+      { x: 0.29, y: 0.38 },
+      { x: 0.24, y: 0.5 },
+      { x: 0.28, y: 0.65 },
+      { x: 0.4, y: 0.84 },
+      { x: 0.48, y: 0.88 },
+    ],
   },
   {
     id: "head-line",
     name: "智慧线",
     color: "#64c7d4",
-    path: "M 35 45 C 48 47, 61 52, 76 58",
+    fallbackPoints: [
+      { x: 0.35, y: 0.45 },
+      { x: 0.48, y: 0.47 },
+      { x: 0.61, y: 0.52 },
+      { x: 0.76, y: 0.58 },
+    ],
   },
   {
     id: "heart-line",
     name: "感情线",
     color: "#ef7f9b",
-    path: "M 35 36 C 48 31, 62 32, 78 39",
+    fallbackPoints: [
+      { x: 0.35, y: 0.36 },
+      { x: 0.48, y: 0.31 },
+      { x: 0.62, y: 0.32 },
+      { x: 0.78, y: 0.39 },
+    ],
   },
   {
     id: "fate-line",
     name: "事业线",
     color: "#b49af3",
-    path: "M 55 82 C 54 67, 54 52, 52 37",
+    fallbackPoints: [],
   },
   {
     id: "wealth-line",
     name: "财运线",
     color: "#e7cb62",
-    path: "M 68 71 C 67 61, 68 52, 70 44",
+    fallbackPoints: [],
   },
   {
     id: "marriage-line",
     name: "婚姻线",
     color: "#76d39b",
-    path: "M 77 43 C 83 42, 87 42, 91 43",
+    fallbackPoints: [],
   },
 ];
+
+function pointsToPath(points: { x: number; y: number }[]) {
+  if (points.length < 2) return "";
+  return points
+    .map((point, index) =>
+      `${index === 0 ? "M" : "L"} ${(point.x * 100).toFixed(2)} ${(point.y * 100).toFixed(2)}`,
+    )
+    .join(" ");
+}
 
 function scrollToLine(id: PalmLine["id"]) {
   document.getElementById(`line-${id}`)?.scrollIntoView({
@@ -65,16 +91,16 @@ export function PalmAnnotation({
   const lineMap = new Map(lines.map((line) => [line.id, line]));
 
   return (
-    <article className="report-shell" id="palm-annotation">
+    <div id="palm-annotation">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="section-kicker">掌纹标注图</p>
           <h3 className="mt-2 font-serif text-2xl text-stone-100">
-            六条主要掌纹 · AI 辅助示意
+            主要掌纹 · AI 辅助标注
           </h3>
         </div>
         <p className="max-w-sm text-xs leading-6 text-stone-500">
-          当前线条为辅助示意，不代表专业图像识别。
+          当前线条为辅助示意，不代表专业图像识别。实线表示图像处理检测，虚线表示估计。
         </p>
       </div>
 
@@ -90,11 +116,19 @@ export function PalmAnnotation({
         >
           {LINE_TEMPLATES.map((template) => {
             const line = lineMap.get(template.id);
-            const muted = line?.isClearlyVisible === false;
+            const points =
+              line?.annotation?.points?.length ? line.annotation.points : template.fallbackPoints;
+            const path = pointsToPath(points);
+            const unavailable = line?.visionStatus === "unavailable" || !path;
+            const estimated =
+              line?.visionStatus === "estimated" ||
+              line?.detectionMethod === "template-estimate";
+
+            if (unavailable) return null;
 
             return (
               <g
-                className={`annotation-path ${muted ? "is-muted" : ""}`}
+                className={`annotation-path ${estimated ? "is-estimated" : ""}`}
                 id={`annotation-${template.id}`}
                 key={template.id}
                 onClick={() => scrollToLine(template.id)}
@@ -106,9 +140,9 @@ export function PalmAnnotation({
                   }
                 }}
               >
-                <path className="annotation-path-halo" d={template.path} />
+                <path className="annotation-path-halo" d={path} />
                 <path
-                  d={template.path}
+                  d={path}
                   fill="none"
                   stroke={template.color}
                   strokeLinecap="round"
@@ -133,11 +167,11 @@ export function PalmAnnotation({
             >
               <span style={{ backgroundColor: template.color }} />
               <span>{template.name}</span>
-              <small>{line?.confidence ?? "low"}</small>
+              <small>{line?.visionStatus ?? "unavailable"} · {line?.confidence ?? "low"}</small>
             </button>
           );
         })}
       </div>
-    </article>
+    </div>
   );
 }

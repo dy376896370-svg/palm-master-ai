@@ -10,6 +10,7 @@ import { PALM_SYSTEM_PROMPT, PALM_USER_PROMPT } from "@/lib/palm-prompt";
 import {
   palmAiReportSchema,
   palmReportSchema,
+  type PalmLineId,
 } from "@/lib/report-schema";
 import { getPalmLineSources } from "@/lib/palm-sources";
 
@@ -25,6 +26,107 @@ const TIMEOUT_MESSAGE =
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 8;
 const requestLog = new Map<string, number[]>();
+
+type VisionLineInput = {
+  id?: string;
+  confidence?: string;
+  visionStatus?: string;
+  detectionMethod?: string;
+  annotation?: {
+    type?: string;
+    points?: Array<{ x?: number; y?: number }>;
+  };
+};
+
+type NormalizedVisionLine = {
+  id: PalmLineId;
+  confidence: "low" | "medium" | "high";
+  visionStatus: "detected" | "estimated" | "unavailable";
+  detectionMethod: "image-processing" | "template-estimate" | "not-detected";
+  annotation: {
+    type: "path";
+    points: Array<{ x: number; y: number }>;
+  };
+};
+
+const DEFAULT_ANNOTATIONS: Record<PalmLineId, NormalizedVisionLine> = {
+  "life-line": {
+    id: "life-line",
+    confidence: "low",
+    visionStatus: "estimated",
+    detectionMethod: "template-estimate",
+    annotation: {
+      type: "path",
+      points: [
+        { x: 0.42, y: 0.35 },
+        { x: 0.34, y: 0.42 },
+        { x: 0.29, y: 0.57 },
+        { x: 0.34, y: 0.74 },
+        { x: 0.48, y: 0.88 },
+      ],
+    },
+  },
+  "head-line": {
+    id: "head-line",
+    confidence: "low",
+    visionStatus: "estimated",
+    detectionMethod: "template-estimate",
+    annotation: {
+      type: "path",
+      points: [
+        { x: 0.36, y: 0.46 },
+        { x: 0.47, y: 0.48 },
+        { x: 0.59, y: 0.52 },
+        { x: 0.75, y: 0.58 },
+      ],
+    },
+  },
+  "heart-line": {
+    id: "heart-line",
+    confidence: "low",
+    visionStatus: "estimated",
+    detectionMethod: "template-estimate",
+    annotation: {
+      type: "path",
+      points: [
+        { x: 0.34, y: 0.36 },
+        { x: 0.47, y: 0.32 },
+        { x: 0.62, y: 0.33 },
+        { x: 0.79, y: 0.39 },
+      ],
+    },
+  },
+  "fate-line": {
+    id: "fate-line",
+    confidence: "low",
+    visionStatus: "unavailable",
+    detectionMethod: "not-detected",
+    annotation: { type: "path", points: [] },
+  },
+  "wealth-line": {
+    id: "wealth-line",
+    confidence: "low",
+    visionStatus: "unavailable",
+    detectionMethod: "not-detected",
+    annotation: { type: "path", points: [] },
+  },
+  "marriage-line": {
+    id: "marriage-line",
+    confidence: "low",
+    visionStatus: "unavailable",
+    detectionMethod: "not-detected",
+    annotation: { type: "path", points: [] },
+  },
+};
+
+const lineIds = new Set(Object.keys(DEFAULT_ANNOTATIONS));
+const confidenceValues = new Set(["low", "medium", "high"]);
+const visionStatusValues = new Set(["detected", "estimated", "unavailable"]);
+const detectionMethodValues = new Set([
+  "image-processing",
+  "template-estimate",
+  "not-detected",
+]);
 
 function jsonError(message: string, type: string, status: number) {
   return Response.json(
@@ -77,6 +179,79 @@ function hasValidImageSignature(bytes: Buffer, type: string) {
   return false;
 }
 
+function normalizeVisionLine(line: VisionLineInput): NormalizedVisionLine | null {
+  if (!line.id || !lineIds.has(line.id)) return null;
+  const id = line.id as PalmLineId;
+  const fallback = DEFAULT_ANNOTATIONS[id];
+  const visionStatus = visionStatusValues.has(line.visionStatus || "")
+    ? (line.visionStatus as NormalizedVisionLine["visionStatus"])
+    : fallback.visionStatus;
+  const detectionMethod = detectionMethodValues.has(line.detectionMethod || "")
+    ? (line.detectionMethod as NormalizedVisionLine["detectionMethod"])
+    : fallback.detectionMethod;
+  const confidence = confidenceValues.has(line.confidence || "")
+    ? (line.confidence as NormalizedVisionLine["confidence"])
+    : fallback.confidence;
+  const points = Array.isArray(line.annotation?.points)
+    ? line.annotation.points
+        .map((point) => ({
+          x: Number(point.x),
+          y: Number(point.y),
+        }))
+        .filter(
+          (point) =>
+            Number.isFinite(point.x) &&
+            Number.isFinite(point.y) &&
+            point.x >= 0 &&
+            point.x <= 1 &&
+            point.y >= 0 &&
+            point.y <= 1,
+        )
+        .slice(0, 12)
+    : fallback.annotation.points;
+
+  return {
+    id,
+    confidence,
+    visionStatus,
+    detectionMethod,
+    annotation: {
+      type: "path",
+      points,
+    },
+  };
+}
+
+function parseVisionPayload(value: FormDataEntryValue | null) {
+  if (typeof value !== "string") return new Map<PalmLineId, NormalizedVisionLine>();
+
+  try {
+    const parsed = JSON.parse(value) as { lines?: VisionLineInput[] };
+    const lines = Array.isArray(parsed.lines) ? parsed.lines : [];
+    return new Map(
+      lines
+        .map(normalizeVisionLine)
+        .filter((line): line is NormalizedVisionLine => Boolean(line))
+        .map((line) => [line.id, line]),
+    );
+  } catch {
+    return new Map<PalmLineId, NormalizedVisionLine>();
+  }
+}
+
+function buildVisionPrompt(visionMap: Map<PalmLineId, NormalizedVisionLine>) {
+  if (!visionMap.size) return "";
+
+  const summary = Array.from(visionMap.values())
+    .map(
+      (line) =>
+        `${line.id}: ${line.visionStatus}/${line.confidence}/${line.detectionMethod}`,
+    )
+    .join("; ");
+
+  return `\n\nPalm Vision Assist 辅助结果（坐标由前端图像处理产生，模型不得修改或编造坐标，只可参考状态描述可见特征）：${summary}`;
+}
+
 export async function POST(request: Request) {
   try {
     if (isRateLimited(getClientId(request))) {
@@ -89,6 +264,7 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const image = formData.get("image");
+    const visionMap = parseVisionPayload(formData.get("vision"));
 
     if (!(image instanceof File)) {
       return jsonError("请选择一张手掌照片。", "missing_image", 400);
@@ -124,6 +300,7 @@ export async function POST(request: Request) {
       fetch: proxyFetch,
     });
 
+    const visionPrompt = buildVisionPrompt(visionMap);
     const response = await client.responses.parse({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       input: [
@@ -131,7 +308,7 @@ export async function POST(request: Request) {
         {
           role: "user",
           content: [
-            { type: "input_text", text: PALM_USER_PROMPT },
+            { type: "input_text", text: `${PALM_USER_PROMPT}${visionPrompt}` },
             { type: "input_image", image_url: imageUrl, detail: "high" },
           ],
         },
@@ -156,6 +333,15 @@ export async function POST(request: Request) {
       generatedAt: new Date().toISOString(),
       lines: response.output_parsed.lines.map((line) => ({
         ...line,
+        ...(visionMap.get(line.id) ?? DEFAULT_ANNOTATIONS[line.id]),
+        ...(visionMap.get(line.id)?.visionStatus === "unavailable" ||
+        DEFAULT_ANNOTATIONS[line.id].visionStatus === "unavailable"
+          ? {
+              visibleFeature:
+                "当前照片不适合稳定判断该掌纹，建议重新拍摄更清晰角度。",
+              isClearlyVisible: false,
+            }
+          : {}),
         sources: getPalmLineSources(line.id),
       })),
     });

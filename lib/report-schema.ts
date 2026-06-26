@@ -52,6 +52,18 @@ const annotationSchema = z.object({
   ),
 });
 
+export const visionStatusSchema = z.enum([
+  "detected",
+  "estimated",
+  "unavailable",
+]);
+
+export const detectionMethodSchema = z.enum([
+  "image-processing",
+  "template-estimate",
+  "not-detected",
+]);
+
 const palmLineAnalysisSchema = z.object({
   id: lineIdSchema,
   name: lineNameSchema,
@@ -63,6 +75,12 @@ const palmLineAnalysisSchema = z.object({
   combinedReading: z.string(),
   practicalAdvice: z.string(),
   annotation: annotationSchema.nullable(),
+});
+
+const palmVisionLineSchema = z.object({
+  visionStatus: visionStatusSchema,
+  detectionMethod: detectionMethodSchema,
+  annotation: annotationSchema,
 });
 
 const palmReportBaseSchema = z.object({
@@ -104,6 +122,7 @@ export const palmAiReportSchema = palmReportBaseSchema.extend({
 export const palmReportSchema = palmReportBaseSchema.extend({
   lines: z.array(
     palmLineAnalysisSchema.extend({
+      ...palmVisionLineSchema.shape,
       sources: palmLineSourcesSchema,
     }),
   ),
@@ -113,3 +132,5 @@ export type PalmReport = z.infer<typeof palmReportSchema>;
 export type PalmLine = PalmReport["lines"][number];
 export type PalmLineId = z.infer<typeof lineIdSchema>;
 export type PalmLineSources = z.infer<typeof palmLineSourcesSchema>;
+export type PalmVisionStatus = z.infer<typeof visionStatusSchema>;
+export type PalmDetectionMethod = z.infer<typeof detectionMethodSchema>;

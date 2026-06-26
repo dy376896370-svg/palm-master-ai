@@ -417,8 +417,8 @@ button:disabled {
   opacity: 1;
 }
 
-.annotation-path.is-muted {
-  opacity: 0.42;
+.annotation-path.is-estimated {
+  opacity: 0.7;
   stroke-dasharray: 4 4;
 }
 
@@ -465,6 +465,94 @@ button:disabled {
   color: #66635d;
   font-size: 9px;
   text-transform: uppercase;
+}
+
+.vision-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.vision-tabs button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  color: #8f8980;
+  font-size: 12px;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.vision-tabs button.is-active {
+  border-color: rgba(215, 181, 109, 0.32);
+  background: rgba(215, 181, 109, 0.075);
+  color: #e0c37b;
+}
+
+.vision-status-grid {
+  display: grid;
+  gap: 10px;
+}
+
+@media (min-width: 640px) {
+  .vision-status-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.vision-status-card {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.018);
+  padding: 13px;
+  color: #aaa49b;
+  text-align: left;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.vision-status-card:hover {
+  border-color: rgba(215, 181, 109, 0.24);
+  background: rgba(215, 181, 109, 0.035);
+}
+
+.vision-status-card span {
+  color: #d6b978;
+  font-size: 12px;
+}
+
+.vision-status-card strong {
+  color: #ddd8cf;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.vision-status-card small {
+  color: #66635d;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.vision-status-card.detected {
+  border-color: rgba(80, 190, 150, 0.2);
+}
+
+.vision-status-card.detected span {
+  color: #89e0bd;
+}
+
+.vision-status-card.estimated {
+  border-color: rgba(215, 181, 109, 0.2);
+}
+
+.vision-status-card.unavailable {
+  border-color: rgba(148, 163, 184, 0.12);
+  opacity: 0.78;
 }
 
 .interpretation-card {

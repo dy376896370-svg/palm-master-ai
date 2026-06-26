@@ -15,6 +15,10 @@ import {
   SunMedium,
 } from "lucide-react";
 import type { PalmReport } from "@/lib/report-schema";
+import {
+  analyzePalmVisionImage,
+  type PalmVisionResult,
+} from "./palm-vision-assist";
 import { ReportView } from "./report-view";
 
 const schools = ["麻衣神相", "神相全编", "冰鉴", "周易", "Palmistry"];
@@ -62,6 +66,7 @@ export function PalmAnalyzer() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
   const [report, setReport] = useState<PalmReport | null>(null);
+  const [visionResult, setVisionResult] = useState<PalmVisionResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [consented, setConsented] = useState(false);
@@ -115,6 +120,7 @@ export function PalmAnalyzer() {
     setFile(selected);
     setPreview(URL.createObjectURL(selected));
     setReport(null);
+    setVisionResult(null);
     setError("");
   }
 
@@ -141,6 +147,20 @@ export function PalmAnalyzer() {
     );
 
     try {
+      try {
+        const vision = await analyzePalmVisionImage(preview);
+        setVisionResult(vision);
+        body.append(
+          "vision",
+          JSON.stringify({
+            quality: vision.quality,
+            lines: vision.lines,
+          }),
+        );
+      } catch {
+        setVisionResult(null);
+      }
+
       const response = await fetch("/api/analyze", {
         method: "POST",
         body,
@@ -186,6 +206,7 @@ export function PalmAnalyzer() {
     setFile(null);
     setPreview("");
     setReport(null);
+    setVisionResult(null);
     setError("");
     setConsented(false);
     setElapsedSeconds(0);
@@ -403,7 +424,11 @@ export function PalmAnalyzer() {
 
       {report && (
         <div id="report" className="relative z-10">
-          <ReportView imageSrc={preview} report={report} />
+          <ReportView
+            imageSrc={preview}
+            initialVisionResult={visionResult}
+            report={report}
+          />
           <div className="mx-auto max-w-4xl px-5 pb-24 text-center">
             <button className="secondary-button inline-flex w-auto px-6" onClick={reset} type="button">
               <RotateCcw className="h-4 w-4" />分析另一张照片

@@ -10,6 +10,7 @@ export const PALM_SYSTEM_PROMPT = `
 4. 某条线看不清时仍保留记录：confidence=low、isClearlyVisible=false；visibleFeature 和各项解读明确写“照片中无法稳定判断”，不得编造。
 5. annotation 本版始终返回 null，不生成坐标。
 6. 不生成 sources 字段。古籍和英文原典由服务器本地资料库注入，与你无关。
+7. 如果用户消息中包含 Palm Vision Assist 辅助结果，只参考其中的 detected/estimated/unavailable、confidence 与 detectionMethod 描述可见特征；不要返回、修改或补充坐标。
 
 【每条掌纹】
 - approximatePosition：20-40 字，说明传统定义中的大概位置，不声称已精准定位。
@@ -29,5 +30,5 @@ export const PALM_SYSTEM_PROMPT = `
 `.trim();
 
 export const PALM_USER_PROMPT = `
-先判断图片质量。合格时生成六条掌纹的 AI 辅助观察和五体系简短解读；不合格时只返回重拍指引。
+先判断图片质量。合格时生成六条掌纹的 AI 辅助观察和五体系简短解读；不合格时只返回重拍指引。若 Palm Vision Assist 标记某条线 unavailable，请明确写“照片中无法稳定判断”，不要为了完整而编造。
 `.trim();

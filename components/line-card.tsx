@@ -8,6 +8,18 @@ const confidenceLabels: Record<PalmLine["confidence"], string> = {
   high: "较高置信度",
 };
 
+const visionStatusLabels: Record<PalmLine["visionStatus"], string> = {
+  detected: "图像处理检测",
+  estimated: "常见位置估计",
+  unavailable: "无法稳定判断",
+};
+
+const detectionMethodLabels: Record<PalmLine["detectionMethod"], string> = {
+  "image-processing": "image-processing",
+  "template-estimate": "template-estimate",
+  "not-detected": "not-detected",
+};
+
 export function LineCard({
   line,
   index,
@@ -36,10 +48,10 @@ export function LineCard({
         </div>
         <span
           className={`visibility ${
-            line.isClearlyVisible ? "" : "visibility-low"
+            line.visionStatus === "detected" ? "" : "visibility-low"
           }`}
         >
-          {confidenceLabels[line.confidence]}
+          {visionStatusLabels[line.visionStatus]} · {confidenceLabels[line.confidence]}
         </span>
       </div>
 
@@ -51,14 +63,25 @@ export function LineCard({
         查看这条掌纹在图片上的辅助标注
       </a>
 
-      {!line.isClearlyVisible && (
+      {line.visionStatus !== "detected" && (
         <div className="mt-5 flex gap-3 rounded-xl border border-amber-400/15 bg-amber-950/20 p-4 text-sm leading-6 text-amber-100/75">
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-          这条掌纹在照片中不够清晰，以下内容仅说明传统位置与有限观察，建议重新拍摄后再判断。
+          {line.visionStatus === "estimated"
+            ? "这条掌纹没有被稳定检测为清晰路径，当前标注为虚线估计，仅说明传统位置与有限观察。"
+            : "当前照片不适合稳定判断该掌纹，建议重新拍摄更清晰角度。"}
         </div>
       )}
 
-      <div className="mt-7 grid gap-4 rounded-xl border border-white/6 bg-black/15 p-5 sm:grid-cols-2">
+      <div className="mt-7 grid gap-4 rounded-xl border border-white/6 bg-black/15 p-5 sm:grid-cols-3">
+        <div>
+          <p className="field-label">识别状态</p>
+          <p className="mt-2 leading-7 text-stone-300">
+            {visionStatusLabels[line.visionStatus]}
+          </p>
+          <p className="mt-1 text-xs text-stone-600">
+            {detectionMethodLabels[line.detectionMethod]} · {confidenceLabels[line.confidence]}
+          </p>
+        </div>
         <div>
           <p className="field-label">观察特征</p>
           <p className="mt-2 leading-7 text-stone-300">
