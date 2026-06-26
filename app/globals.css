@@ -4,6 +4,13 @@
   --background: #05080d;
   --foreground: #f2efe8;
   --gold: #d7b56d;
+  --font-sans:
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei",
+    "Noto Sans CJK SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-serif:
+    "Songti SC", "STSong", "Noto Serif CJK SC", "SimSun", "Times New Roman",
+    serif;
 }
 
 * {
