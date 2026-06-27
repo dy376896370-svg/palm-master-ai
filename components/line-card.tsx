@@ -15,9 +15,21 @@ const visionStatusLabels: Record<PalmLine["visionStatus"], string> = {
 };
 
 const detectionMethodLabels: Record<PalmLine["detectionMethod"], string> = {
-  "image-processing": "image-processing",
+  "landmarks-classical-cv": "landmarks + classical-cv",
   "template-estimate": "template-estimate",
   "not-detected": "not-detected",
+};
+
+const failureReasonLabels: Record<PalmLine["failureReasons"][number], string> = {
+  image_blurry: "照片略模糊",
+  palm_rotated: "手掌角度偏斜",
+  landmarks_missing: "未稳定识别手部关键点",
+  candidate_fragmented: "候选线条断裂",
+  low_contrast: "掌纹对比度偏低",
+  roi_unstable: "掌心区域不稳定",
+  candidate_not_found: "未找到稳定候选线",
+  classification_score_low: "分类评分偏低",
+  mediapipe_unavailable: "关键点模型暂不可用",
 };
 
 export function LineCard({
@@ -79,7 +91,12 @@ export function LineCard({
             {visionStatusLabels[line.visionStatus]}
           </p>
           <p className="mt-1 text-xs text-stone-600">
-            {detectionMethodLabels[line.detectionMethod]} · {confidenceLabels[line.confidence]}
+            {detectionMethodLabels[line.detectionMethod]} · {Math.round(line.visionConfidence * 100)}%
+          </p>
+          <p className="mt-1 text-xs text-stone-600">
+            ROI {Math.round(line.confidenceBreakdown.roi * 100)}% ·
+            关键点 {Math.round(line.confidenceBreakdown.landmarks * 100)}% ·
+            分类 {Math.round(line.confidenceBreakdown.classification * 100)}%
           </p>
         </div>
         <div>
@@ -95,6 +112,22 @@ export function LineCard({
           </p>
         </div>
       </div>
+
+      {line.failureReasons.length > 0 && (
+        <div className="mt-4 rounded-xl border border-white/6 bg-black/15 p-4">
+          <p className="field-label">失败原因 / 重拍建议</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {line.failureReasons.map((reason) => (
+              <span className="feature-tag" key={reason}>
+                {failureReasonLabels[reason]}
+              </span>
+            ))}
+          </div>
+          <p className="mt-3 text-sm leading-7 text-stone-500">
+            建议手掌放平、完整入镜、手指自然张开，使用均匀光线，避免桌面纹理和强反光。
+          </p>
+        </div>
+      )}
 
       <div className="school-view mt-7">
         <h4>参考依据</h4>

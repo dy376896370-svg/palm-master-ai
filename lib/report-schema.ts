@@ -59,9 +59,21 @@ export const visionStatusSchema = z.enum([
 ]);
 
 export const detectionMethodSchema = z.enum([
-  "image-processing",
+  "landmarks-classical-cv",
   "template-estimate",
   "not-detected",
+]);
+
+export const failureReasonSchema = z.enum([
+  "image_blurry",
+  "palm_rotated",
+  "landmarks_missing",
+  "candidate_fragmented",
+  "low_contrast",
+  "roi_unstable",
+  "candidate_not_found",
+  "classification_score_low",
+  "mediapipe_unavailable",
 ]);
 
 const palmLineAnalysisSchema = z.object({
@@ -80,6 +92,15 @@ const palmLineAnalysisSchema = z.object({
 const palmVisionLineSchema = z.object({
   visionStatus: visionStatusSchema,
   detectionMethod: detectionMethodSchema,
+  visionConfidence: z.number().min(0).max(1),
+  confidenceBreakdown: z.object({
+    roi: z.number().min(0).max(1),
+    landmarks: z.number().min(0).max(1),
+    edge: z.number().min(0).max(1),
+    classification: z.number().min(0).max(1),
+    final: z.number().min(0).max(1),
+  }),
+  failureReasons: z.array(failureReasonSchema),
   annotation: annotationSchema,
 });
 

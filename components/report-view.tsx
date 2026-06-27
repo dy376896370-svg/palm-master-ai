@@ -22,6 +22,7 @@ export function ReportView({
   const [visionResult, setVisionResult] = useState<PalmVisionResult | null>(
     initialVisionResult,
   );
+  const [developerMode, setDeveloperMode] = useState(false);
   const handleVisionResult = useCallback((result: PalmVisionResult) => {
     setVisionResult(result);
   }, []);
@@ -45,10 +46,11 @@ export function ReportView({
 
         return {
           ...line,
-          confidence: vision.confidence,
+          confidence: vision.confidenceLabel,
           visionStatus: vision.visionStatus,
           detectionMethod: vision.detectionMethod,
           annotation: vision.annotation,
+          visionConfidence: vision.confidence,
           isClearlyVisible:
             vision.visionStatus === "detected" ||
             (vision.visionStatus === "estimated" && line.isClearlyVisible),
@@ -94,7 +96,17 @@ export function ReportView({
   return (
     <section className="mx-auto max-w-4xl px-5 py-24 sm:px-8">
       <div className="mb-12 text-center">
-        <div className="eyebrow mx-auto"><BookOpen className="h-3.5 w-3.5" />你的掌心文化报告</div>
+        <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+          <div className="eyebrow"><BookOpen className="h-3.5 w-3.5" />你的掌心文化报告</div>
+          <label className="developer-toggle">
+            <input
+              checked={developerMode}
+              onChange={(event) => setDeveloperMode(event.target.checked)}
+              type="checkbox"
+            />
+            Developer Mode
+          </label>
+        </div>
         <h2 className="mt-5 font-serif text-4xl text-stone-50 sm:text-5xl">五家合观 · 一念自省</h2>
         <p className="mt-4 text-sm text-stone-500">
           图像清晰度 {Math.round(displayReport.imageQuality.score)} / 100 · 报告编号 {displayReport.reportId}
@@ -119,6 +131,7 @@ export function ReportView({
       <div className="mt-6">
         <PalmVisionAssist
           imageSrc={imageSrc}
+          developerMode={developerMode}
           lines={displayReport.lines}
           initialVisionResult={visionResult}
           onVisionResult={handleVisionResult}

@@ -285,6 +285,23 @@ button:disabled {
   accent-color: #c89c51;
 }
 
+.developer-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(215, 181, 109, 0.16);
+  border-radius: 999px;
+  background: rgba(215, 181, 109, 0.045);
+  padding: 8px 12px;
+  color: #9f988f;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.developer-toggle input {
+  accent-color: #d7b56d;
+}
+
 .trust-card {
   border: 1px solid rgba(255, 255, 255, 0.065);
   border-radius: 14px;
@@ -469,8 +486,14 @@ button:disabled {
 
 .vision-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+@media (min-width: 640px) {
+  .vision-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .vision-tabs button {
@@ -535,6 +558,14 @@ button:disabled {
 .vision-status-card small {
   color: #66635d;
   font-size: 10px;
+  line-height: 1.6;
+}
+
+.vision-status-card em {
+  display: block;
+  color: #6f6a62;
+  font-size: 10px;
+  font-style: normal;
   line-height: 1.6;
 }
 

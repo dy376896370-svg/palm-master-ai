@@ -29,9 +29,19 @@ const requestLog = new Map<string, number[]>();
 
 type VisionLineInput = {
   id?: string;
-  confidence?: string;
+  confidence?: string | number;
+  confidenceLabel?: string;
   visionStatus?: string;
   detectionMethod?: string;
+  confidenceBreakdown?: {
+    roi?: number;
+    landmarks?: number;
+    edge?: number;
+    classification?: number;
+    final?: number;
+  };
+  failureReasons?: string[];
+  path?: Array<{ x?: number; y?: number }>;
   annotation?: {
     type?: string;
     points?: Array<{ x?: number; y?: number }>;
@@ -41,8 +51,17 @@ type VisionLineInput = {
 type NormalizedVisionLine = {
   id: PalmLineId;
   confidence: "low" | "medium" | "high";
+  visionConfidence: number;
   visionStatus: "detected" | "estimated" | "unavailable";
-  detectionMethod: "image-processing" | "template-estimate" | "not-detected";
+  detectionMethod: "landmarks-classical-cv" | "template-estimate" | "not-detected";
+  confidenceBreakdown: {
+    roi: number;
+    landmarks: number;
+    edge: number;
+    classification: number;
+    final: number;
+  };
+  failureReasons: string[];
   annotation: {
     type: "path";
     points: Array<{ x: number; y: number }>;
@@ -53,6 +72,9 @@ const DEFAULT_ANNOTATIONS: Record<PalmLineId, NormalizedVisionLine> = {
   "life-line": {
     id: "life-line",
     confidence: "low",
+    visionConfidence: 0.2,
+    confidenceBreakdown: { roi: 0.2, landmarks: 0, edge: 0, classification: 0, final: 0.2 },
+    failureReasons: ["landmarks_missing"],
     visionStatus: "estimated",
     detectionMethod: "template-estimate",
     annotation: {
@@ -69,6 +91,9 @@ const DEFAULT_ANNOTATIONS: Record<PalmLineId, NormalizedVisionLine> = {
   "head-line": {
     id: "head-line",
     confidence: "low",
+    visionConfidence: 0.2,
+    confidenceBreakdown: { roi: 0.2, landmarks: 0, edge: 0, classification: 0, final: 0.2 },
+    failureReasons: ["landmarks_missing"],
     visionStatus: "estimated",
     detectionMethod: "template-estimate",
     annotation: {
@@ -84,6 +109,9 @@ const DEFAULT_ANNOTATIONS: Record<PalmLineId, NormalizedVisionLine> = {
   "heart-line": {
     id: "heart-line",
     confidence: "low",
+    visionConfidence: 0.2,
+    confidenceBreakdown: { roi: 0.2, landmarks: 0, edge: 0, classification: 0, final: 0.2 },
+    failureReasons: ["landmarks_missing"],
     visionStatus: "estimated",
     detectionMethod: "template-estimate",
     annotation: {
@@ -99,6 +127,9 @@ const DEFAULT_ANNOTATIONS: Record<PalmLineId, NormalizedVisionLine> = {
   "fate-line": {
     id: "fate-line",
     confidence: "low",
+    visionConfidence: 0,
+    confidenceBreakdown: { roi: 0, landmarks: 0, edge: 0, classification: 0, final: 0 },
+    failureReasons: ["candidate_not_found"],
     visionStatus: "unavailable",
     detectionMethod: "not-detected",
     annotation: { type: "path", points: [] },
@@ -106,6 +137,9 @@ const DEFAULT_ANNOTATIONS: Record<PalmLineId, NormalizedVisionLine> = {
   "wealth-line": {
     id: "wealth-line",
     confidence: "low",
+    visionConfidence: 0,
+    confidenceBreakdown: { roi: 0, landmarks: 0, edge: 0, classification: 0, final: 0 },
+    failureReasons: ["candidate_not_found"],
     visionStatus: "unavailable",
     detectionMethod: "not-detected",
     annotation: { type: "path", points: [] },
@@ -113,6 +147,9 @@ const DEFAULT_ANNOTATIONS: Record<PalmLineId, NormalizedVisionLine> = {
   "marriage-line": {
     id: "marriage-line",
     confidence: "low",
+    visionConfidence: 0,
+    confidenceBreakdown: { roi: 0, landmarks: 0, edge: 0, classification: 0, final: 0 },
+    failureReasons: ["candidate_not_found"],
     visionStatus: "unavailable",
     detectionMethod: "not-detected",
     annotation: { type: "path", points: [] },
@@ -123,10 +160,27 @@ const lineIds = new Set(Object.keys(DEFAULT_ANNOTATIONS));
 const confidenceValues = new Set(["low", "medium", "high"]);
 const visionStatusValues = new Set(["detected", "estimated", "unavailable"]);
 const detectionMethodValues = new Set([
-  "image-processing",
+  "landmarks-classical-cv",
   "template-estimate",
   "not-detected",
 ]);
+const failureReasonValues = new Set([
+  "image_blurry",
+  "palm_rotated",
+  "landmarks_missing",
+  "candidate_fragmented",
+  "low_contrast",
+  "roi_unstable",
+  "candidate_not_found",
+  "classification_score_low",
+  "mediapipe_unavailable",
+]);
+
+function confidenceLabelFromScore(score: number): NormalizedVisionLine["confidence"] {
+  if (score >= 0.72) return "high";
+  if (score >= 0.46) return "medium";
+  return "low";
+}
 
 function jsonError(message: string, type: string, status: number) {
   return Response.json(
@@ -189,11 +243,23 @@ function normalizeVisionLine(line: VisionLineInput): NormalizedVisionLine | null
   const detectionMethod = detectionMethodValues.has(line.detectionMethod || "")
     ? (line.detectionMethod as NormalizedVisionLine["detectionMethod"])
     : fallback.detectionMethod;
-  const confidence = confidenceValues.has(line.confidence || "")
-    ? (line.confidence as NormalizedVisionLine["confidence"])
-    : fallback.confidence;
-  const points = Array.isArray(line.annotation?.points)
+  const rawConfidence =
+    typeof line.confidence === "number"
+      ? line.confidence
+      : Number(line.confidence);
+  const visionConfidence = Number.isFinite(rawConfidence)
+    ? Math.min(1, Math.max(0, rawConfidence))
+    : fallback.visionConfidence;
+  const confidence = confidenceValues.has(line.confidenceLabel || "")
+    ? (line.confidenceLabel as NormalizedVisionLine["confidence"])
+    : confidenceValues.has(String(line.confidence || ""))
+      ? (line.confidence as NormalizedVisionLine["confidence"])
+      : confidenceLabelFromScore(visionConfidence);
+  const rawPoints = Array.isArray(line.annotation?.points)
     ? line.annotation.points
+    : line.path;
+  const points = Array.isArray(rawPoints)
+    ? rawPoints
         .map((point) => ({
           x: Number(point.x),
           y: Number(point.y),
@@ -209,12 +275,25 @@ function normalizeVisionLine(line: VisionLineInput): NormalizedVisionLine | null
         )
         .slice(0, 12)
     : fallback.annotation.points;
+  const confidenceBreakdown = {
+    roi: Math.min(1, Math.max(0, Number(line.confidenceBreakdown?.roi ?? fallback.confidenceBreakdown.roi))),
+    landmarks: Math.min(1, Math.max(0, Number(line.confidenceBreakdown?.landmarks ?? fallback.confidenceBreakdown.landmarks))),
+    edge: Math.min(1, Math.max(0, Number(line.confidenceBreakdown?.edge ?? fallback.confidenceBreakdown.edge))),
+    classification: Math.min(1, Math.max(0, Number(line.confidenceBreakdown?.classification ?? fallback.confidenceBreakdown.classification))),
+    final: Math.min(1, Math.max(0, Number(line.confidenceBreakdown?.final ?? visionConfidence))),
+  };
+  const failureReasons = Array.isArray(line.failureReasons)
+    ? line.failureReasons.filter((reason) => failureReasonValues.has(reason)).slice(0, 6)
+    : fallback.failureReasons;
 
   return {
     id,
     confidence,
+    visionConfidence,
     visionStatus,
     detectionMethod,
+    confidenceBreakdown,
+    failureReasons,
     annotation: {
       type: "path",
       points,
@@ -240,16 +319,19 @@ function parseVisionPayload(value: FormDataEntryValue | null) {
 }
 
 function buildVisionPrompt(visionMap: Map<PalmLineId, NormalizedVisionLine>) {
-  if (!visionMap.size) return "";
+  const merged = new Map<PalmLineId, NormalizedVisionLine>(
+    Object.entries(DEFAULT_ANNOTATIONS) as Array<[PalmLineId, NormalizedVisionLine]>,
+  );
+  for (const [id, line] of visionMap) merged.set(id, line);
 
-  const summary = Array.from(visionMap.values())
+  const summary = Array.from(merged.values())
     .map(
       (line) =>
-        `${line.id}: ${line.visionStatus}/${line.confidence}/${line.detectionMethod}`,
+        `${line.id}: ${line.visionStatus}/${Math.round(line.visionConfidence * 100)}%/${line.detectionMethod}; failures=${line.failureReasons.join("|") || "none"}`,
     )
     .join("; ");
 
-  return `\n\nPalm Vision Assist 辅助结果（坐标由前端图像处理产生，模型不得修改或编造坐标，只可参考状态描述可见特征）：${summary}`;
+  return `\n\nPalmVisionResult（由前端图像处理 pipeline 产生；模型只能读取这些结构化结果，不得自行看图、猜坐标或补线）：${summary}`;
 }
 
 export async function POST(request: Request) {
@@ -282,7 +364,6 @@ export async function POST(request: Request) {
     if (!hasValidImageSignature(bytes, image.type)) {
       return jsonError("图片文件无法识别，请重新选择原始照片。", "invalid_image_file", 415);
     }
-    const imageUrl = `data:${image.type};base64,${bytes.toString("base64")}`;
     const proxyAgent = process.env.OPENAI_PROXY_URL
       ? new ProxyAgent(process.env.OPENAI_PROXY_URL)
       : undefined;
@@ -309,7 +390,6 @@ export async function POST(request: Request) {
           role: "user",
           content: [
             { type: "input_text", text: `${PALM_USER_PROMPT}${visionPrompt}` },
-            { type: "input_image", image_url: imageUrl, detail: "high" },
           ],
         },
       ],

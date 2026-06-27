@@ -153,7 +153,8 @@ export function PalmAnalyzer() {
         body.append(
           "vision",
           JSON.stringify({
-            quality: vision.quality,
+            imageQuality: vision.imageQuality,
+            roi: vision.roi,
             lines: vision.lines,
           }),
         );
