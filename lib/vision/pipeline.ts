@@ -73,14 +73,25 @@ function renderCandidatesOverlay(
   if (!context) return normalized.imageSrc;
 
   const colors = ["#d7b56d", "#64c7d4", "#ef7f9b", "#76d39b", "#b49af3"];
-  candidates.slice(0, 10).forEach((candidate, index) => {
+  candidates.slice(0, 24).forEach((candidate, index) => {
+    const accepted = candidate.accepted;
     drawPolyline(
       context,
       candidate.points,
       canvas.width,
       canvas.height,
-      colors[index % colors.length],
-      index > 2,
+      accepted ? colors[index % colors.length] : "#64748b",
+      !accepted,
+    );
+
+    const first = candidate.points[0];
+    if (!first) return;
+    context.fillStyle = accepted ? "#f7d88a" : "#94a3b8";
+    context.font = "10px sans-serif";
+    context.fillText(
+      `${candidate.id}${accepted ? "" : "×"}`,
+      first.x * canvas.width + 3,
+      first.y * canvas.height + 3,
     );
   });
 
@@ -104,6 +115,7 @@ export async function runPalmVisionPipeline(
   const morphology = morphologyClose(canny.binary);
   const skeleton = skeletonize(morphology);
   const candidates = extractLineCandidates(skeleton, canny.magnitude);
+  const acceptedCandidateCount = candidates.filter((candidate) => candidate.accepted).length;
   const normalizedLines = classifyPalmLines({
     candidates,
     handPose,
@@ -117,7 +129,7 @@ export async function runPalmVisionPipeline(
   ];
 
   return {
-    version: "palm-vision-assist-v2",
+    version: "palm-vision-assist-v3",
     imageQuality: {
       contrast: Math.round(contrast),
       edgeStrength: Math.round(canny.edgeStrength),
@@ -154,6 +166,11 @@ export async function runPalmVisionPipeline(
       candidateImageSrc: renderCandidatesOverlay(normalized, candidates),
     },
     candidates,
+    candidateStats: {
+      total: candidates.length,
+      accepted: acceptedCandidateCount,
+      rejected: candidates.length - acceptedCandidateCount,
+    },
     lines,
     stages: [
       "read-image",

@@ -30,6 +30,15 @@ const failureReasonLabels: Record<PalmLine["failureReasons"][number], string> = 
   candidate_not_found: "未找到稳定候选线",
   classification_score_low: "分类评分偏低",
   mediapipe_unavailable: "关键点模型暂不可用",
+  path_zigzag_too_high: "路径曲折异常",
+  crosses_fingers: "候选线穿过手指区域",
+  jumps_too_large: "候选线存在大跳跃",
+  outside_palm_roi: "候选线超出掌心区域",
+  touches_image_border: "候选线贴近图片边缘",
+  too_vertical_for_heart_or_head: "横向主线方向异常",
+  too_many_sharp_turns: "候选线急转过多",
+  too_short: "候选线过短",
+  too_long: "候选线过长",
 };
 
 export function LineCard({
@@ -79,8 +88,8 @@ export function LineCard({
         <div className="mt-5 flex gap-3 rounded-xl border border-amber-400/15 bg-amber-950/20 p-4 text-sm leading-6 text-amber-100/75">
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
           {line.visionStatus === "estimated"
-            ? "这条掌纹没有被稳定检测为清晰路径，当前标注为虚线估计，仅说明传统位置与有限观察。"
-            : "当前照片不适合稳定判断该掌纹，建议重新拍摄更清晰角度。"}
+            ? "这条掌纹只找到低置信度候选线，当前以虚线呈现，不能视为专业精准识别。"
+            : "当前照片未能稳定识别该掌纹。建议手掌完全张开、掌心占画面 80%、使用均匀光线重新拍摄。"}
         </div>
       )}
 
@@ -124,7 +133,7 @@ export function LineCard({
             ))}
           </div>
           <p className="mt-3 text-sm leading-7 text-stone-500">
-            建议手掌放平、完整入镜、手指自然张开，使用均匀光线，避免桌面纹理和强反光。
+            当前照片未能稳定识别该掌纹。建议手掌完全张开、掌心占画面 80%、使用均匀光线重新拍摄。
           </p>
         </div>
       )}

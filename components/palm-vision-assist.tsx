@@ -50,8 +50,18 @@ type ViewMode = (typeof VIEW_OPTIONS)[number]["id"];
 
 function statusText(visionStatus: PalmLine["visionStatus"]) {
   if (visionStatus === "detected") return "图像处理检测";
-  if (visionStatus === "estimated") return "模板估计";
+  if (visionStatus === "estimated") return "候选线低置信度";
   return "无法稳定判断";
+}
+
+function lineDecisionText(line: PalmVisionLine) {
+  if (line.visionStatus === "detected") {
+    return `选择原因：候选线通过安全过滤，分类评分 ${Math.round(line.metrics.classificationScore * 100)}%，最终置信度 ${Math.round(line.confidence * 100)}%。`;
+  }
+  if (line.visionStatus === "estimated") {
+    return `低置信度原因：存在候选线，但分类/连续性不足；当前仅以虚线呈现，最终置信度 ${Math.round(line.confidence * 100)}%。`;
+  }
+  return `拒绝原因：未找到合格候选线，或候选线触发安全惩罚；${line.failureReasons.join(" / ") || "candidate_not_found"}。`;
 }
 
 function toDisplayLines(lines: PalmLine[], visionLines: PalmVisionLine[]): PalmLine[] {
@@ -148,7 +158,7 @@ export function PalmVisionAssist({
     <article className="report-shell" id="palm-vision-assist">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="section-kicker">Palm Vision Assist V1.0</p>
+          <p className="section-kicker">Palm Vision Assist V3</p>
           <h3 className="mt-2 font-serif text-2xl text-stone-100">
             掌纹识别辅助系统
           </h3>
@@ -250,6 +260,57 @@ export function PalmVisionAssist({
           {visionResult.imageQuality.failureReasons.length ? (
             <p>失败原因：{visionResult.imageQuality.failureReasons.join(" / ")}</p>
           ) : null}
+          <p>
+            Candidates：total {visionResult.candidateStats.total} · accepted{" "}
+            {visionResult.candidateStats.accepted} · rejected{" "}
+            {visionResult.candidateStats.rejected}
+          </p>
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            {visionResult.lines
+              .filter((line) => PRIMARY_LINE_IDS.has(line.id))
+              .map((line) => (
+                <div
+                  className="rounded-xl border border-white/6 bg-black/20 p-3"
+                  key={`decision-${line.id}`}
+                >
+                  <p className="font-serif text-sm text-amber-100">
+                    {LINE_LABELS[line.id]}
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-stone-500">
+                    {lineDecisionText(line)}
+                  </p>
+                  <p className="mt-2 text-xs text-stone-600">
+                    length {line.length.toFixed(2)} · skeleton{" "}
+                    {line.metrics.skeletonHits} · method {line.detectionMethod}
+                  </p>
+                </div>
+              ))}
+          </div>
+          {visionResult.candidates.length ? (
+            <div className="mt-3 rounded-xl border border-white/6 bg-black/20 p-3">
+              <p className="font-serif text-sm text-amber-100">
+                Candidate rejection log
+              </p>
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                {visionResult.candidates.slice(0, 16).map((candidate) => (
+                  <p
+                    className="rounded-lg bg-white/[0.03] px-3 py-2 text-xs leading-5 text-stone-500"
+                    key={candidate.id}
+                  >
+                    <span className="text-stone-300">{candidate.id}</span>{" "}
+                    · {candidate.accepted ? "accepted" : "rejected"} ·{" "}
+                    {candidate.region} · len {candidate.length.toFixed(2)} ·
+                    zigzag {candidate.zigzag.toFixed(2)} · jump{" "}
+                    {candidate.maxJump.toFixed(2)}
+                    <br />
+                    reason: {candidate.reason.join(" / ") || "passed"}
+                  </p>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p>Candidate rejection log：未提取到候选线。</p>
+          )}
         </div>
       )}
     </article>

@@ -6,7 +6,6 @@ type LineTemplate = {
   id: PalmLine["id"];
   name: PalmLine["name"];
   color: string;
-  fallbackPoints: { x: number; y: number }[];
 };
 
 const LINE_TEMPLATES: LineTemplate[] = [
@@ -14,56 +13,42 @@ const LINE_TEMPLATES: LineTemplate[] = [
     id: "life-line",
     name: "生命线",
     color: "#f1a35b",
-    fallbackPoints: [
-      { x: 0.42, y: 0.35 },
-      { x: 0.29, y: 0.38 },
-      { x: 0.24, y: 0.5 },
-      { x: 0.28, y: 0.65 },
-      { x: 0.4, y: 0.84 },
-      { x: 0.48, y: 0.88 },
-    ],
   },
   {
     id: "head-line",
     name: "智慧线",
     color: "#64c7d4",
-    fallbackPoints: [
-      { x: 0.35, y: 0.45 },
-      { x: 0.48, y: 0.47 },
-      { x: 0.61, y: 0.52 },
-      { x: 0.76, y: 0.58 },
-    ],
   },
   {
     id: "heart-line",
     name: "感情线",
     color: "#ef7f9b",
-    fallbackPoints: [
-      { x: 0.35, y: 0.36 },
-      { x: 0.48, y: 0.31 },
-      { x: 0.62, y: 0.32 },
-      { x: 0.78, y: 0.39 },
-    ],
   },
   {
     id: "fate-line",
     name: "事业线",
     color: "#b49af3",
-    fallbackPoints: [],
   },
   {
     id: "wealth-line",
     name: "财运线",
     color: "#e7cb62",
-    fallbackPoints: [],
   },
   {
     id: "marriage-line",
     name: "婚姻线",
     color: "#76d39b",
-    fallbackPoints: [],
   },
 ];
+
+const BLOCKING_FAILURE_REASONS = new Set<PalmLine["failureReasons"][number]>([
+  "crosses_fingers",
+  "jumps_too_large",
+  "touches_image_border",
+  "path_zigzag_too_high",
+  "too_many_sharp_turns",
+  "outside_palm_roi",
+]);
 
 function pointsToPath(points: { x: number; y: number }[]) {
   if (points.length < 2) return "";
@@ -116,13 +101,26 @@ export function PalmAnnotation({
         >
           {LINE_TEMPLATES.map((template) => {
             const line = lineMap.get(template.id);
-            const points =
-              line?.annotation?.points?.length ? line.annotation.points : template.fallbackPoints;
+            const points = line?.annotation?.points ?? [];
             const path = pointsToPath(points);
-            const unavailable = line?.visionStatus === "unavailable" || !path;
+            const visionConfidence = line?.visionConfidence ?? 0;
+            const hasBlockingFailure = line?.failureReasons.some((reason) =>
+              BLOCKING_FAILURE_REASONS.has(reason),
+            );
+            const unavailable =
+              line?.visionStatus === "unavailable" ||
+              !path ||
+              !line ||
+              hasBlockingFailure ||
+              visionConfidence < 0.35;
             const estimated =
               line?.visionStatus === "estimated" ||
-              line?.detectionMethod === "template-estimate";
+              line?.detectionMethod === "template-estimate" ||
+              visionConfidence < 0.55;
+            const detectedSolid =
+              line?.visionStatus === "detected" &&
+              visionConfidence >= 0.55 &&
+              !hasBlockingFailure;
 
             if (unavailable) return null;
 
@@ -145,6 +143,7 @@ export function PalmAnnotation({
                   d={path}
                   fill="none"
                   stroke={template.color}
+                  strokeDasharray={detectedSolid ? undefined : "5 5"}
                   strokeLinecap="round"
                   strokeWidth="1.15"
                   vectorEffect="non-scaling-stroke"
@@ -167,7 +166,12 @@ export function PalmAnnotation({
             >
               <span style={{ backgroundColor: template.color }} />
               <span>{template.name}</span>
-              <small>{line?.visionStatus ?? "unavailable"} · {line?.confidence ?? "low"}</small>
+              <small>
+                {line?.visionStatus ?? "unavailable"} · {line?.confidence ?? "low"}
+                {line?.visionConfidence !== undefined
+                  ? ` · ${Math.round(line.visionConfidence * 100)}%`
+                  : ""}
+              </small>
             </button>
           );
         })}

@@ -72,57 +72,32 @@ const DEFAULT_ANNOTATIONS: Record<PalmLineId, NormalizedVisionLine> = {
   "life-line": {
     id: "life-line",
     confidence: "low",
-    visionConfidence: 0.2,
-    confidenceBreakdown: { roi: 0.2, landmarks: 0, edge: 0, classification: 0, final: 0.2 },
-    failureReasons: ["landmarks_missing"],
-    visionStatus: "estimated",
-    detectionMethod: "template-estimate",
-    annotation: {
-      type: "path",
-      points: [
-        { x: 0.42, y: 0.35 },
-        { x: 0.34, y: 0.42 },
-        { x: 0.29, y: 0.57 },
-        { x: 0.34, y: 0.74 },
-        { x: 0.48, y: 0.88 },
-      ],
-    },
+    visionConfidence: 0,
+    confidenceBreakdown: { roi: 0, landmarks: 0, edge: 0, classification: 0, final: 0 },
+    failureReasons: ["landmarks_missing", "candidate_not_found"],
+    visionStatus: "unavailable",
+    detectionMethod: "not-detected",
+    annotation: { type: "path", points: [] },
   },
   "head-line": {
     id: "head-line",
     confidence: "low",
-    visionConfidence: 0.2,
-    confidenceBreakdown: { roi: 0.2, landmarks: 0, edge: 0, classification: 0, final: 0.2 },
-    failureReasons: ["landmarks_missing"],
-    visionStatus: "estimated",
-    detectionMethod: "template-estimate",
-    annotation: {
-      type: "path",
-      points: [
-        { x: 0.36, y: 0.46 },
-        { x: 0.47, y: 0.48 },
-        { x: 0.59, y: 0.52 },
-        { x: 0.75, y: 0.58 },
-      ],
-    },
+    visionConfidence: 0,
+    confidenceBreakdown: { roi: 0, landmarks: 0, edge: 0, classification: 0, final: 0 },
+    failureReasons: ["landmarks_missing", "candidate_not_found"],
+    visionStatus: "unavailable",
+    detectionMethod: "not-detected",
+    annotation: { type: "path", points: [] },
   },
   "heart-line": {
     id: "heart-line",
     confidence: "low",
-    visionConfidence: 0.2,
-    confidenceBreakdown: { roi: 0.2, landmarks: 0, edge: 0, classification: 0, final: 0.2 },
-    failureReasons: ["landmarks_missing"],
-    visionStatus: "estimated",
-    detectionMethod: "template-estimate",
-    annotation: {
-      type: "path",
-      points: [
-        { x: 0.34, y: 0.36 },
-        { x: 0.47, y: 0.32 },
-        { x: 0.62, y: 0.33 },
-        { x: 0.79, y: 0.39 },
-      ],
-    },
+    visionConfidence: 0,
+    confidenceBreakdown: { roi: 0, landmarks: 0, edge: 0, classification: 0, final: 0 },
+    failureReasons: ["landmarks_missing", "candidate_not_found"],
+    visionStatus: "unavailable",
+    detectionMethod: "not-detected",
+    annotation: { type: "path", points: [] },
   },
   "fate-line": {
     id: "fate-line",
@@ -174,6 +149,15 @@ const failureReasonValues = new Set([
   "candidate_not_found",
   "classification_score_low",
   "mediapipe_unavailable",
+  "path_zigzag_too_high",
+  "crosses_fingers",
+  "jumps_too_large",
+  "outside_palm_roi",
+  "touches_image_border",
+  "too_vertical_for_heart_or_head",
+  "too_many_sharp_turns",
+  "too_short",
+  "too_long",
 ]);
 
 function confidenceLabelFromScore(score: number): NormalizedVisionLine["confidence"] {
@@ -411,19 +395,21 @@ export async function POST(request: Request) {
       ...response.output_parsed,
       reportId: `palm_${randomUUID().slice(0, 8)}`,
       generatedAt: new Date().toISOString(),
-      lines: response.output_parsed.lines.map((line) => ({
-        ...line,
-        ...(visionMap.get(line.id) ?? DEFAULT_ANNOTATIONS[line.id]),
-        ...(visionMap.get(line.id)?.visionStatus === "unavailable" ||
-        DEFAULT_ANNOTATIONS[line.id].visionStatus === "unavailable"
-          ? {
-              visibleFeature:
-                "当前照片不适合稳定判断该掌纹，建议重新拍摄更清晰角度。",
-              isClearlyVisible: false,
-            }
-          : {}),
-        sources: getPalmLineSources(line.id),
-      })),
+      lines: response.output_parsed.lines.map((line) => {
+        const visionLine = visionMap.get(line.id) ?? DEFAULT_ANNOTATIONS[line.id];
+        return {
+          ...line,
+          ...visionLine,
+          ...(visionLine.visionStatus === "unavailable"
+            ? {
+                visibleFeature:
+                  "当前照片未能稳定识别该掌纹。建议手掌完全张开、掌心占画面 80%、使用均匀光线重新拍摄。",
+                isClearlyVisible: false,
+              }
+            : {}),
+          sources: getPalmLineSources(line.id),
+        };
+      }),
     });
 
     return Response.json({ report });

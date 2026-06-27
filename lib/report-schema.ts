@@ -74,6 +74,15 @@ export const failureReasonSchema = z.enum([
   "candidate_not_found",
   "classification_score_low",
   "mediapipe_unavailable",
+  "path_zigzag_too_high",
+  "crosses_fingers",
+  "jumps_too_large",
+  "outside_palm_roi",
+  "touches_image_border",
+  "too_vertical_for_heart_or_head",
+  "too_many_sharp_turns",
+  "too_short",
+  "too_long",
 ]);
 
 const palmLineAnalysisSchema = z.object({

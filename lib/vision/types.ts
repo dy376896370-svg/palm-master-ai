@@ -25,7 +25,16 @@ export type FailureReason =
   | "roi_unstable"
   | "candidate_not_found"
   | "classification_score_low"
-  | "mediapipe_unavailable";
+  | "mediapipe_unavailable"
+  | "path_zigzag_too_high"
+  | "crosses_fingers"
+  | "jumps_too_large"
+  | "outside_palm_roi"
+  | "touches_image_border"
+  | "too_vertical_for_heart_or_head"
+  | "too_many_sharp_turns"
+  | "too_short"
+  | "too_long";
 
 export type ImageMatrix = {
   width: number;
@@ -87,7 +96,22 @@ export type PalmLineCandidate = {
   length: number;
   bbox: { x: number; y: number; width: number; height: number };
   continuity: number;
+  curvature: number;
+  averageAngle: number;
   meanEdgeStrength: number;
+  edgeStrength: number;
+  region:
+    | "upper-palm"
+    | "middle-palm"
+    | "thumb-side"
+    | "lower-palm"
+    | "finger-zone"
+    | "border-zone";
+  accepted: boolean;
+  reason: FailureReason[];
+  maxJump: number;
+  sharpTurns: number;
+  zigzag: number;
 };
 
 export type ConfidenceBreakdown = {
@@ -123,7 +147,7 @@ export type PalmVisionLine = {
 };
 
 export type PalmVisionResult = {
-  version: "palm-vision-assist-v2";
+  version: "palm-vision-assist-v3";
   imageQuality: {
     contrast: number;
     edgeStrength: number;
@@ -145,6 +169,11 @@ export type PalmVisionResult = {
     candidateImageSrc: string;
   };
   candidates: PalmLineCandidate[];
+  candidateStats: {
+    total: number;
+    accepted: number;
+    rejected: number;
+  };
   lines: PalmVisionLine[];
   stages: string[];
 };
