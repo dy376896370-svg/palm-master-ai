@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { BookOpen, Share2, TriangleAlert } from "lucide-react";
+import { BookOpen, Camera, CheckCircle2, Share2, Sparkles, TriangleAlert } from "lucide-react";
 import type { PalmReport } from "@/lib/report-schema";
 import { LineCard } from "./line-card";
 import {
@@ -9,6 +9,59 @@ import {
   type PalmVisionResult,
 } from "./palm-vision-assist";
 import { ShareCard } from "./share-card";
+
+function qualityLabel(score: number) {
+  if (score >= 76) return "良好";
+  if (score >= 52) return "一般";
+  return "较差";
+}
+
+function reliabilityLabel(score: number) {
+  if (score >= 76) return "较高";
+  if (score >= 52) return "中等";
+  return "偏低";
+}
+
+function qualityChecks(report: PalmReport, visionResult: PalmVisionResult | null) {
+  const score = report.imageQuality.score;
+  const roiConfidence = visionResult?.imageQuality.roiConfidence ?? score / 100;
+  const edgeStrength = visionResult?.imageQuality.edgeStrength ?? score;
+  const contrast = visionResult?.imageQuality.contrast ?? score;
+  const issues = new Set(report.imageQuality.issues);
+
+  return [
+    {
+      label: "手掌是否完整",
+      passed: roiConfidence >= 0.55 && !issues.has("手掌不完整"),
+      detail: roiConfidence >= 0.55 ? "掌心区域基本可用" : "建议让整只手完整入镜",
+    },
+    {
+      label: "掌心是否占画面 70% 以上",
+      passed: roiConfidence >= 0.65,
+      detail: roiConfidence >= 0.65 ? "画面占比适合观察" : "建议掌心靠近镜头，占画面约 80%",
+    },
+    {
+      label: "光线是否均匀",
+      passed: contrast >= 28 && !issues.has("光线不均"),
+      detail: contrast >= 28 ? "明暗层次可用" : "建议使用柔和均匀光线",
+    },
+    {
+      label: "是否模糊",
+      passed: edgeStrength >= 8 && !issues.has("照片模糊"),
+      detail: edgeStrength >= 8 ? "纹理边缘可观察" : "建议重新对焦后拍摄",
+    },
+    {
+      label: "是否反光",
+      passed: !Array.from(issues).some((issue) => issue.includes("反光")),
+      detail: "避免强光直射、桌面反光或皮肤过曝",
+    },
+    {
+      label: "背景是否干扰",
+      passed: !Array.from(issues).some((issue) => issue.includes("背景")),
+      detail: "纯色背景更利于观察掌心纹理",
+    },
+  ];
+}
 
 export function ReportView({
   imageSrc,
@@ -74,24 +127,12 @@ export function ReportView({
     }
   }
 
-  if (!displayReport.imageQuality.accepted) {
-    return (
-      <section className="mx-auto max-w-3xl px-5 py-24 sm:px-8">
-        <div className="report-shell text-center">
-          <TriangleAlert className="mx-auto h-10 w-10 text-amber-300" />
-          <h2 className="mt-5 font-serif text-3xl text-stone-100">这张照片还不够清晰</h2>
-          <p className="mx-auto mt-4 max-w-xl leading-7 text-stone-400">
-            为避免编造掌纹内容，本次没有生成解读。请按以下方式重新拍摄：
-          </p>
-          <ul className="mx-auto mt-6 max-w-md space-y-3 text-left text-sm text-stone-300">
-            {displayReport.imageQuality.retakeGuidance.map((tip) => (
-              <li className="flex gap-3" key={tip}><span className="text-amber-300">◇</span>{tip}</li>
-            ))}
-          </ul>
-        </div>
-      </section>
-    );
-  }
+  const checks = qualityChecks(displayReport, visionResult);
+  const shouldRetake =
+    !displayReport.imageQuality.accepted || displayReport.imageQuality.score < 52;
+  const visibleOverview = displayReport.lines
+    .filter((line) => line.isClearlyVisible || line.visionStatus !== "unavailable")
+    .slice(0, 4);
 
   return (
     <section className="mx-auto max-w-4xl px-5 py-24 sm:px-8">
@@ -109,7 +150,7 @@ export function ReportView({
         </div>
         <h2 className="mt-5 font-serif text-4xl text-stone-50 sm:text-5xl">五家合观 · 一念自省</h2>
         <p className="mt-4 text-sm text-stone-500">
-          图像清晰度 {Math.round(displayReport.imageQuality.score)} / 100 · 报告编号 {displayReport.reportId}
+          照片质量 {qualityLabel(displayReport.imageQuality.score)} · 报告可靠度 {reliabilityLabel(displayReport.imageQuality.score)} · 报告编号 {displayReport.reportId}
         </p>
         <p className="source-transparency mt-4">
           本站仅展示已核验原典资料，未收录内容不会由 AI 编造。
@@ -117,6 +158,62 @@ export function ReportView({
       </div>
 
       <article className="report-shell">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="section-kicker">Palm Photo Quality Check</p>
+            <h3 className="mt-2 font-serif text-2xl text-stone-100">
+              照片质量：{qualityLabel(displayReport.imageQuality.score)}
+            </h3>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-500">
+              本模块只做照片质量诊断与辅助观察，不承诺精准识别每条掌纹。报告会优先基于可见特征和 Palm Canon 资料库生成文化参考解读。
+            </p>
+          </div>
+          <span className={`quality-badge ${shouldRetake ? "is-warning" : ""}`}>
+            预计报告可靠度：{reliabilityLabel(displayReport.imageQuality.score)}
+          </span>
+        </div>
+
+        <div className="quality-grid mt-6">
+          {checks.map((check) => (
+            <div className="quality-item" key={check.label}>
+              {check.passed ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-300/80" />
+              ) : (
+                <TriangleAlert className="h-4 w-4 text-amber-300/80" />
+              )}
+              <div>
+                <strong>{check.label}</strong>
+                <p>{check.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 rounded-xl border border-amber-300/10 bg-amber-950/10 p-4">
+          <div className="flex items-center gap-2 text-sm text-amber-100/80">
+            <Camera className="h-4 w-4" />
+            {shouldRetake ? "建议重拍后获得更稳定的观察结果" : "这张照片可以用于本次文化解读"}
+          </div>
+          <ul className="mt-3 grid gap-2 text-sm leading-6 text-stone-400 sm:grid-cols-2">
+            {(displayReport.imageQuality.retakeGuidance.length
+              ? displayReport.imageQuality.retakeGuidance
+              : [
+                  "手掌完全张开，掌心朝向镜头。",
+                  "掌心靠近镜头，占画面约 80%。",
+                  "使用均匀光线，避免反光。",
+                  "选择简单背景，不要开美颜。",
+                ]
+            ).map((tip) => (
+              <li className="flex gap-2" key={tip}>
+                <span className="text-amber-300">◇</span>
+                {tip}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </article>
+
+      <article className="report-shell mt-6">
         <p className="section-kicker">整体印象</p>
         <h3 className="mt-2 font-serif text-2xl text-stone-100">掌心初见</h3>
         <div className="mt-5 flex flex-wrap gap-2">
@@ -126,6 +223,21 @@ export function ReportView({
         </div>
         <p className="mt-6 leading-8 text-stone-300">{displayReport.overallImpression.culturalReading}</p>
         <p className="mt-3 leading-8 text-stone-500">{displayReport.overallImpression.modernReflection}</p>
+      </article>
+
+      <article className="report-shell mt-6">
+        <div className="flex items-center gap-2 text-amber-100">
+          <Sparkles className="h-4 w-4" />
+          <p className="section-kicker">可见掌纹概览</p>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          {(visibleOverview.length ? visibleOverview : displayReport.lines.slice(0, 4)).map((line) => (
+            <div className="interpretation-card" key={`overview-${line.id}`}>
+              <h4>{line.name}</h4>
+              <p>{line.visibleFeature}</p>
+            </div>
+          ))}
+        </div>
       </article>
 
       <div className="mt-6">

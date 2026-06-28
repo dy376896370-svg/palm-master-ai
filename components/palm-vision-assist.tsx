@@ -158,13 +158,13 @@ export function PalmVisionAssist({
     <article className="report-shell" id="palm-vision-assist">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="section-kicker">Palm Vision Assist V3</p>
+          <p className="section-kicker">Palm Vision Assist</p>
           <h3 className="mt-2 font-serif text-2xl text-stone-100">
-            掌纹识别辅助系统
+            辅助观察图
           </h3>
         </div>
         <p className="max-w-sm text-xs leading-6 text-stone-500">
-          当前为 AI 辅助识别，不等于专业掌纹检测。不清晰的线条会显示为估计或无法判断。
+          当前只用于照片质量诊断与辅助观察，不承诺精准识别每条掌纹。Developer Mode 可查看识别调试信息。
         </p>
       </div>
 
@@ -187,7 +187,17 @@ export function PalmVisionAssist({
         </div>
       )}
 
-      {viewMode === "recognized" ? (
+      {!developerMode ? (
+        <div className="mt-5">
+          <div className="annotation-stage">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imageSrc} alt="手掌照片辅助观察图" />
+          </div>
+          <p className="mt-4 rounded-xl border border-white/6 bg-black/15 px-4 py-3 text-sm leading-7 text-stone-500">
+            普通模式不显示自动画线，避免将低置信度视觉结果误认为专业识别。下方报告会以可见观察、传统通用解释与已核验原典资料状态为主。
+          </p>
+        </div>
+      ) : viewMode === "recognized" ? (
         <PalmAnnotation imageSrc={imageSrc} lines={displayLines} />
       ) : (
         <div className="annotation-stage mt-5">
@@ -202,8 +212,9 @@ export function PalmVisionAssist({
         </p>
       )}
 
-      <div className="vision-status-grid mt-5">
-        {displayLines.map((line) => {
+      {developerMode && (
+        <div className="vision-status-grid mt-5">
+          {displayLines.map((line) => {
           const vision = visionResult?.lines.find((item) => item.id === line.id);
           const isPrimary = PRIMARY_LINE_IDS.has(line.id);
           return (
@@ -242,8 +253,9 @@ export function PalmVisionAssist({
               ) : null}
             </button>
           );
-        })}
-      </div>
+          })}
+        </div>
+      )}
 
       {developerMode && visionResult && (
         <div className="vision-pipeline-note mt-4">

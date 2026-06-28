@@ -230,6 +230,34 @@ button:disabled {
   gap: 8px;
 }
 
+.shooting-guide {
+  border: 1px solid rgba(215, 181, 109, 0.12);
+  border-radius: 13px;
+  background: rgba(215, 181, 109, 0.035);
+  padding: 14px;
+}
+
+.shooting-guide p {
+  color: #d8c58b;
+  font-size: 12px;
+}
+
+.shooting-guide ul {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 10px;
+  color: #8c867b;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.shooting-guide li::before {
+  content: "◇";
+  margin-right: 6px;
+  color: rgba(215, 181, 109, 0.8);
+}
+
 .photo-guide > div {
   display: flex;
   min-height: 36px;
@@ -356,6 +384,55 @@ button:disabled {
   padding: 7px 11px;
   color: #bcb4a3;
   font-size: 12px;
+}
+
+.quality-badge {
+  width: fit-content;
+  flex-shrink: 0;
+  border: 1px solid rgba(52, 211, 153, 0.18);
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.06);
+  padding: 8px 12px;
+  color: rgba(167, 243, 208, 0.78);
+  font-size: 12px;
+}
+
+.quality-badge.is-warning {
+  border-color: rgba(251, 191, 36, 0.18);
+  background: rgba(180, 83, 9, 0.08);
+  color: rgba(253, 230, 138, 0.78);
+}
+
+.quality-grid {
+  display: grid;
+  gap: 10px;
+}
+
+@media (min-width: 640px) {
+  .quality-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.quality-item {
+  display: flex;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.018);
+  padding: 13px;
+}
+
+.quality-item strong {
+  color: #d8d1c5;
+  font-size: 13px;
+}
+
+.quality-item p {
+  margin-top: 4px;
+  color: #77736c;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .visibility {

@@ -1,6 +1,50 @@
 import { BookOpenText, CircleAlert, ExternalLink, Sparkles } from "lucide-react";
 import type { PalmLine } from "@/lib/report-schema";
-import { SOURCE_NOT_COLLECTED } from "@/lib/palm-sources";
+
+const LINE_GUIDES: Record<
+  PalmLine["id"],
+  {
+    traditional: string;
+    western: string;
+  }
+> = {
+  "life-line": {
+    traditional:
+      "传统相术通常把生命线视为精力状态、行动韧性与生活节奏的象征。这里是传统说法的现代归纳，并非古籍原文。",
+    western:
+      "西方 Palmistry 通常关注生命线的弧度、连续性与围绕拇指根部的范围，用来象征活力与生活方式倾向。",
+  },
+  "head-line": {
+    traditional:
+      "传统相术常以智慧线观察思考方式、专注程度与处事取向。这里是传统说法的现代归纳，并非古籍原文。",
+    western:
+      "西方 Palmistry 多把 Head Line 视为心智模式的象征，关注其横向延伸、倾斜角度与清晰程度。",
+  },
+  "heart-line": {
+    traditional:
+      "传统相术常以感情线观察情绪表达、人际敏感度与关系中的自我觉察。这里是传统说法的现代归纳，并非古籍原文。",
+    western:
+      "西方 Palmistry 多把 Heart Line 放在情感与关系表达框架中观察，重视其位置、长度与连贯性。",
+  },
+  "fate-line": {
+    traditional:
+      "传统相术常把事业线视为阶段目标、责任感与外部环境牵引的象征。这里是传统说法的现代归纳，并非古籍原文。",
+    western:
+      "西方 Palmistry 通常将 Fate Line 与职业路径、人生阶段感和外部结构感联系起来，但并不视为决定论。",
+  },
+  "wealth-line": {
+    traditional:
+      "传统相术中的财运相关纹路多被理解为资源意识、积累习惯与现实规划能力。这里是传统说法的现代归纳，并非古籍原文。",
+    western:
+      "西方 Palmistry 对金钱相关细纹没有统一标准，更多作为资源管理与实践能力的象征性参考。",
+  },
+  "marriage-line": {
+    traditional:
+      "传统相术常把婚姻线作为亲密关系态度、沟通习惯与情感边界的象征。这里是传统说法的现代归纳，并非古籍原文。",
+    western:
+      "西方 Palmistry 常把小指下方的关系线视为亲密互动倾向参考，不用于判断婚姻结果。",
+  },
+};
 
 const confidenceLabels: Record<PalmLine["confidence"], string> = {
   low: "低置信度",
@@ -52,6 +96,8 @@ export function LineCard({
     chineseClassics: [],
     westernPalmistry: [],
   };
+  const guide = LINE_GUIDES[line.id];
+  const hasAnnotation = line.annotation.points.length > 1 && line.visionConfidence >= 0.55;
 
   return (
     <article
@@ -76,13 +122,15 @@ export function LineCard({
         </span>
       </div>
 
-      <a
-        className="line-annotation-link mt-5"
-        href={`#annotation-${line.id}`}
-      >
-        <span />
-        查看这条掌纹在图片上的辅助标注
-      </a>
+      {hasAnnotation ? (
+        <a
+          className="line-annotation-link mt-5"
+          href={`#annotation-${line.id}`}
+        >
+          <span />
+          查看这条掌纹在开发者标注图中的辅助位置
+        </a>
+      ) : null}
 
       {line.visionStatus !== "detected" && (
         <div className="mt-5 flex gap-3 rounded-xl border border-amber-400/15 bg-amber-950/20 p-4 text-sm leading-6 text-amber-100/75">
@@ -95,12 +143,12 @@ export function LineCard({
 
       <div className="mt-7 grid gap-4 rounded-xl border border-white/6 bg-black/15 p-5 sm:grid-cols-3">
         <div>
-          <p className="field-label">识别状态</p>
+          <p className="field-label">掌纹位置说明</p>
           <p className="mt-2 leading-7 text-stone-300">
-            {visionStatusLabels[line.visionStatus]}
+            {line.approximatePosition}
           </p>
           <p className="mt-1 text-xs text-stone-600">
-            {detectionMethodLabels[line.detectionMethod]} · {Math.round(line.visionConfidence * 100)}%
+            视觉辅助：{visionStatusLabels[line.visionStatus]} · {Math.round(line.visionConfidence * 100)}%
           </p>
           <p className="mt-1 text-xs text-stone-600">
             ROI {Math.round(line.confidenceBreakdown.roi * 100)}% ·
@@ -109,15 +157,15 @@ export function LineCard({
           </p>
         </div>
         <div>
-          <p className="field-label">观察特征</p>
+          <p className="field-label">当前照片观察</p>
           <p className="mt-2 leading-7 text-stone-300">
             {line.visibleFeature}
           </p>
         </div>
         <div>
-          <p className="field-label">大概位置</p>
+          <p className="field-label">识别方式</p>
           <p className="mt-2 leading-7 text-stone-300">
-            {line.approximatePosition}
+            {detectionMethodLabels[line.detectionMethod]}
           </p>
         </div>
       </div>
@@ -138,9 +186,23 @@ export function LineCard({
         </div>
       )}
 
+      <div className="mt-7 grid gap-4 md:grid-cols-2">
+        <div className="interpretation-card">
+          <h4>传统相术通用解释</h4>
+          <p>{guide.traditional}</p>
+        </div>
+        <div className="interpretation-card">
+          <h4>西方 Palmistry 通用解释</h4>
+          <p>{guide.western}</p>
+        </div>
+      </div>
+
       <div className="school-view mt-7">
-        <h4>参考依据</h4>
+        <h4>原典资料状态</h4>
         <p>{line.referenceBasis}</p>
+        {!sources.chineseClassics.length && !sources.westernPalmistry.length ? (
+          <p className="modern">原典原文：待校勘。</p>
+        ) : null}
       </div>
 
       <div className="source-section mt-7">
@@ -164,7 +226,7 @@ export function LineCard({
             ))}
           </div>
         ) : (
-          <p className="source-empty mt-4">{SOURCE_NOT_COLLECTED}</p>
+          <p className="source-empty mt-4">原典原文：待校勘。</p>
         )}
       </div>
 
@@ -194,7 +256,7 @@ export function LineCard({
             ))}
           </div>
         ) : (
-          <p className="source-empty mt-4">{SOURCE_NOT_COLLECTED}</p>
+          <p className="source-empty mt-4">原典原文：待校勘。</p>
         )}
       </div>
 

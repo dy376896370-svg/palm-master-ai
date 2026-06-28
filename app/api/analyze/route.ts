@@ -48,6 +48,18 @@ type VisionLineInput = {
   };
 };
 
+type VisionPayloadInput = {
+  imageQuality?: {
+    contrast?: number;
+    edgeStrength?: number;
+    roiConfidence?: number;
+    landmarksConfidence?: number;
+    accepted?: boolean;
+    failureReasons?: string[];
+  };
+  lines?: VisionLineInput[];
+};
+
 type NormalizedVisionLine = {
   id: PalmLineId;
   confidence: "low" | "medium" | "high";
@@ -286,23 +298,42 @@ function normalizeVisionLine(line: VisionLineInput): NormalizedVisionLine | null
 }
 
 function parseVisionPayload(value: FormDataEntryValue | null) {
-  if (typeof value !== "string") return new Map<PalmLineId, NormalizedVisionLine>();
+  if (typeof value !== "string") {
+    return {
+      visionMap: new Map<PalmLineId, NormalizedVisionLine>(),
+      qualitySummary: "未收到前端照片质量诊断。",
+    };
+  }
 
   try {
-    const parsed = JSON.parse(value) as { lines?: VisionLineInput[] };
+    const parsed = JSON.parse(value) as VisionPayloadInput;
     const lines = Array.isArray(parsed.lines) ? parsed.lines : [];
-    return new Map(
-      lines
-        .map(normalizeVisionLine)
-        .filter((line): line is NormalizedVisionLine => Boolean(line))
-        .map((line) => [line.id, line]),
-    );
+    const quality = parsed.imageQuality;
+    const qualitySummary = quality
+      ? `contrast=${Math.round(Number(quality.contrast ?? 0))}; edgeStrength=${Math.round(Number(quality.edgeStrength ?? 0))}; roiConfidence=${Math.round(Number(quality.roiConfidence ?? 0) * 100)}%; landmarksConfidence=${Math.round(Number(quality.landmarksConfidence ?? 0) * 100)}%; accepted=${Boolean(quality.accepted)}; qualityFailures=${Array.isArray(quality.failureReasons) ? quality.failureReasons.filter((reason) => failureReasonValues.has(reason)).join("|") || "none" : "none"}`
+      : "未收到前端照片质量诊断。";
+
+    return {
+      visionMap: new Map(
+        lines
+          .map(normalizeVisionLine)
+          .filter((line): line is NormalizedVisionLine => Boolean(line))
+          .map((line) => [line.id, line]),
+      ),
+      qualitySummary,
+    };
   } catch {
-    return new Map<PalmLineId, NormalizedVisionLine>();
+    return {
+      visionMap: new Map<PalmLineId, NormalizedVisionLine>(),
+      qualitySummary: "前端照片质量诊断解析失败。",
+    };
   }
 }
 
-function buildVisionPrompt(visionMap: Map<PalmLineId, NormalizedVisionLine>) {
+function buildVisionPrompt(
+  visionMap: Map<PalmLineId, NormalizedVisionLine>,
+  qualitySummary: string,
+) {
   const merged = new Map<PalmLineId, NormalizedVisionLine>(
     Object.entries(DEFAULT_ANNOTATIONS) as Array<[PalmLineId, NormalizedVisionLine]>,
   );
@@ -315,7 +346,7 @@ function buildVisionPrompt(visionMap: Map<PalmLineId, NormalizedVisionLine>) {
     )
     .join("; ");
 
-  return `\n\nPalmVisionResult（由前端图像处理 pipeline 产生；模型只能读取这些结构化结果，不得自行看图、猜坐标或补线）：${summary}`;
+  return `\n\nPalmVisionResult（由前端图像处理 pipeline 产生；模型只能读取这些结构化结果，不得自行看图、猜坐标或补线）：photoQuality={${qualitySummary}}; lines={${summary}}`;
 }
 
 export async function POST(request: Request) {
@@ -330,7 +361,7 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const image = formData.get("image");
-    const visionMap = parseVisionPayload(formData.get("vision"));
+    const { visionMap, qualitySummary } = parseVisionPayload(formData.get("vision"));
 
     if (!(image instanceof File)) {
       return jsonError("请选择一张手掌照片。", "missing_image", 400);
@@ -365,7 +396,7 @@ export async function POST(request: Request) {
       fetch: proxyFetch,
     });
 
-    const visionPrompt = buildVisionPrompt(visionMap);
+    const visionPrompt = buildVisionPrompt(visionMap, qualitySummary);
     const response = await client.responses.parse({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       input: [

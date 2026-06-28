@@ -285,6 +285,18 @@ export function PalmAnalyzer() {
             <Aperture className="h-6 w-6 text-amber-300/60" />
           </div>
 
+          <div className="shooting-guide mb-4">
+            <p>为了获得更好的报告，请这样拍：</p>
+            <ul>
+              <li>掌心朝向镜头</li>
+              <li>手掌完全张开</li>
+              <li>掌心占画面 80%</li>
+              <li>光线均匀</li>
+              <li>不要开美颜</li>
+              <li>避免复杂背景</li>
+            </ul>
+          </div>
+
           <div className="photo-guide mb-4">
             <div><SunMedium /><span>光线均匀</span></div>
             <div><Aperture /><span>手掌完整</span></div>
