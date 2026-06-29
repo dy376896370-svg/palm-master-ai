@@ -411,7 +411,7 @@ export async function POST(request: Request) {
       text: {
         format: zodTextFormat(palmAiReportSchema, "palm_reading_report"),
       },
-      max_output_tokens: 3_500,
+      max_output_tokens: 5_500,
     });
 
     if (!response.output_parsed) {
@@ -433,8 +433,6 @@ export async function POST(request: Request) {
           ...visionLine,
           ...(visionLine.visionStatus === "unavailable"
             ? {
-                visibleFeature:
-                  "当前照片未能稳定识别该掌纹。建议手掌完全张开、掌心占画面 80%、使用均匀光线重新拍摄。",
                 isClearlyVisible: false,
               }
             : {}),

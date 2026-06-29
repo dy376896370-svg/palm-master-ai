@@ -90,11 +90,16 @@ const palmLineAnalysisSchema = z.object({
   name: lineNameSchema,
   confidence: z.enum(["low", "medium", "high"]),
   approximatePosition: z.string(),
+  visibilityAssessment: z.string(),
+  visibilityIssue: z.string(),
   visibleFeature: z.string(),
   isClearlyVisible: z.boolean(),
   referenceBasis: z.string(),
+  traditionalGeneralInterpretation: z.string(),
+  westernGeneralInterpretation: z.string(),
   combinedReading: z.string(),
   practicalAdvice: z.string(),
+  selfObservationQuestion: z.string(),
   annotation: annotationSchema.nullable(),
 });
 
@@ -141,6 +146,7 @@ const palmReportBaseSchema = z.object({
   share: z.object({
     title: z.string(),
     summary: z.string(),
+    oneLineSummary: z.string(),
     tags: z.array(z.string()),
   }),
 });

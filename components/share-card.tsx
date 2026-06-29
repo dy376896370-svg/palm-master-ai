@@ -80,7 +80,10 @@ async function createShareImage(report: PalmReport) {
 
   context.fillStyle = "#c8c3ba";
   context.font = "34px sans-serif";
-  const summary = report.share.summary || report.overallImpression.modernReflection;
+  const summary =
+    report.share.oneLineSummary ||
+    report.share.summary ||
+    report.overallImpression.modernReflection;
   const summaryLines = wrapText(context, summary, 860).slice(0, 6);
   summaryLines.forEach((line, index) => {
     context.fillText(line, 92, 895 + index * 58);

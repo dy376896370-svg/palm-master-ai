@@ -116,7 +116,7 @@ export function ReportView({
   async function share() {
     const shareData = {
       title: displayReport.share.title,
-      text: `${displayReport.share.summary}\n\n仅供娱乐参考。`,
+      text: `${displayReport.share.oneLineSummary}\n${displayReport.share.summary}\n\n仅供娱乐参考。`,
       url: window.location.origin,
     };
     if (navigator.share) {
@@ -240,6 +240,30 @@ export function ReportView({
         </div>
       </article>
 
+      <article className="report-shell mt-6">
+        <p className="section-kicker">中西掌纹观点对照</p>
+        <h3 className="mt-2 font-serif text-2xl text-stone-100">
+          同一条线，两种文化视角
+        </h3>
+        <p className="mt-3 text-sm leading-7 text-stone-500">
+          以下均为传统掌纹体系的现代归纳，不是古籍或英文原文直引；已核验原典会在每条卡片底部单独展示。
+        </p>
+        <div className="mt-5 grid gap-4">
+          {displayReport.lines.slice(0, 6).map((line) => (
+            <div className="comparison-row" key={`compare-${line.id}`}>
+              <div>
+                <strong>{line.name}</strong>
+                <p>{line.traditionalGeneralInterpretation}</p>
+              </div>
+              <div>
+                <strong>Western Palmistry</strong>
+                <p>{line.westernGeneralInterpretation}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </article>
+
       <div className="mt-6">
         <PalmVisionAssist
           imageSrc={imageSrc}
@@ -259,6 +283,9 @@ export function ReportView({
       <article className="report-shell mt-6">
         <p className="section-kicker">综合总结</p>
         <h3 className="mt-2 font-serif text-3xl text-stone-100">把掌纹当作一面镜子</h3>
+        <p className="mt-4 rounded-xl border border-amber-300/10 bg-amber-950/10 px-4 py-3 text-base leading-7 text-amber-100/80">
+          {displayReport.share.oneLineSummary}
+        </p>
         <div className="mt-6 grid gap-5 sm:grid-cols-2">
           <div>
             <p className="field-label">当下主题</p>
