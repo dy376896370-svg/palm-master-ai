@@ -41,6 +41,12 @@ type AnalyzeResponse = {
     message?: string;
     type?: string;
     status?: number;
+    retryable?: boolean;
+  };
+  fallback?: {
+    type?: string;
+    message?: string;
+    retryable?: boolean;
   };
 };
 
