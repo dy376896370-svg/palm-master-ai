@@ -20,8 +20,8 @@ export const maxDuration = 60;
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const OPENAI_TIMEOUT_MS = 45_000;
-const OPENAI_MAX_RETRIES = 1;
+const OPENAI_TIMEOUT_MS = 28_000;
+const OPENAI_MAX_RETRIES = 0;
 const TIMEOUT_MESSAGE =
   "AI分析超时，请稍后重试或换一张更清晰的照片。";
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
@@ -600,7 +600,7 @@ export async function POST(request: Request) {
       text: {
         format: zodTextFormat(palmAiReportSchema, "palm_reading_report"),
       },
-      max_output_tokens: 3_200,
+      max_output_tokens: 2_600,
     });
 
     if (!response.output_parsed) {

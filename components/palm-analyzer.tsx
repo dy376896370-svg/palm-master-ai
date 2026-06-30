@@ -68,6 +68,33 @@ function getFallbackErrorMessage(status: number) {
   return "分析暂时失败，请检查照片后重试。";
 }
 
+function getFriendlyErrorMessage(error?: AnalyzeResponse["error"], status?: number) {
+  if (!error) return getFallbackErrorMessage(status ?? 500);
+
+  switch (error.type) {
+    case "missing_openai_api_key":
+      return "AI 服务暂未配置完成，请联系网站维护者。";
+    case "openai_auth_error":
+      return "AI 服务授权暂时不可用，请联系网站维护者。";
+    case "openai_quota_exceeded":
+      return "今日 AI 体验额度已用完，请稍后再来。";
+    case "openai_rate_limited":
+    case "rate_limited":
+      return "当前体验人数较多，请稍后重试。";
+    case "openai_server_error":
+      return "AI服务暂时繁忙，请稍后重试。";
+    case "openai_connection_error":
+      return "暂时无法连接 AI 服务，请稍后重试。";
+    case "timeout":
+      return TIMEOUT_MESSAGE;
+    case "openai_bad_request":
+    case "empty_ai_report":
+      return "AI 无法完成本次结构化分析，请换一张清晰照片重试。";
+    default:
+      return error.message || getFallbackErrorMessage(status ?? 500);
+  }
+}
+
 export function PalmAnalyzer() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
@@ -178,9 +205,7 @@ export function PalmAnalyzer() {
       const data = safeParseAnalyzeResponse(responseText);
 
       if (!response.ok) {
-        throw new Error(
-          data?.error?.message || getFallbackErrorMessage(response.status),
-        );
+        throw new Error(getFriendlyErrorMessage(data?.error, response.status));
       }
 
       if (!data?.report) {
@@ -198,7 +223,7 @@ export function PalmAnalyzer() {
         isTimeout
           ? TIMEOUT_MESSAGE
           : cause instanceof Error
-            ? cause.message
+            ? cause.message || "网络连接失败，请稍后重试。"
             : "分析失败，请重试。",
       );
     } finally {
