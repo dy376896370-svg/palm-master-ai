@@ -283,7 +283,7 @@ export function LineCard({
       </div>
 
       <p className="line-disclaimer mt-5">
-        仅供传统文化参考与娱乐体验，不构成医疗、投资、婚姻或人生决策建议。
+        仅供传统文化参考与娱乐体验，不构成医疗、投资、婚姻、寿命、死亡或人生决策建议。
       </p>
     </article>
   );

@@ -101,6 +101,7 @@ export function PalmAnalyzer() {
   const [report, setReport] = useState<PalmReport | null>(null);
   const [visionResult, setVisionResult] = useState<PalmVisionResult | null>(null);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [consented, setConsented] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -155,6 +156,7 @@ export function PalmAnalyzer() {
     setReport(null);
     setVisionResult(null);
     setError("");
+    setNotice("");
   }
 
   async function analyze() {
@@ -171,6 +173,7 @@ export function PalmAnalyzer() {
     setLoading(true);
     setElapsedSeconds(0);
     setError("");
+    setNotice("");
     const body = new FormData();
     body.append("image", file);
     const controller = new AbortController();
@@ -212,6 +215,12 @@ export function PalmAnalyzer() {
         throw new Error("分析结果格式异常，请稍后重试。");
       }
 
+      if (data.fallback?.message || data.error?.type === "timeout") {
+        setNotice(
+          data.fallback?.message ||
+            "完整报告暂时不可用，已自动切换为快速报告。",
+        );
+      }
       setReport(data.report);
       requestAnimationFrame(() =>
         document.getElementById("report")?.scrollIntoView({ behavior: "smooth" }),
@@ -240,6 +249,7 @@ export function PalmAnalyzer() {
     setReport(null);
     setVisionResult(null);
     setError("");
+    setNotice("");
     setConsented(false);
     setElapsedSeconds(0);
     if (uploadRef.current) uploadRef.current.value = "";
@@ -283,7 +293,7 @@ export function PalmAnalyzer() {
           </h1>
           <p className="mt-6 max-w-xl text-base leading-8 text-stone-400 sm:text-lg">
             上传手掌照片，AI 将从可见纹理出发，汇集东方古典相学与西方
-            Palmistry，为你生成一份克制、细腻的文化解读。
+            Palmistry，为你生成一份可查看、可保存、可分享的娱乐文化报告。
           </p>
 
           <div className="mt-8 flex flex-wrap gap-2">
@@ -298,7 +308,7 @@ export function PalmAnalyzer() {
           <div className="mt-10 grid max-w-lg grid-cols-3 gap-5 border-t border-white/8 pt-6 text-sm text-stone-400">
             <div><strong>01</strong><br />上传照片</div>
             <div><strong>02</strong><br />AI观察</div>
-            <div><strong>03</strong><br />获得报告</div>
+            <div><strong>03</strong><br />分享报告</div>
           </div>
         </div>
 
@@ -411,6 +421,12 @@ export function PalmAnalyzer() {
             </div>
           )}
 
+          {notice && (
+            <div className="mt-3 rounded-lg border border-amber-300/15 bg-amber-950/20 px-4 py-3 text-sm leading-6 text-amber-100/80">
+              {notice}
+            </div>
+          )}
+
           <label className="consent-row mt-4">
             <input
               checked={consented}
@@ -424,7 +440,7 @@ export function PalmAnalyzer() {
 
           <div className="mt-5 flex items-start gap-2 text-[11px] leading-5 text-stone-600">
             <LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400/60" />
-            仅供传统文化参考与娱乐体验，不构成医疗、投资、婚姻或人生决策建议。
+            仅供传统文化参考与娱乐体验，不构成医疗、投资、婚姻、寿命、死亡或人生决策建议。
           </div>
         </div>
       </section>
@@ -455,7 +471,7 @@ export function PalmAnalyzer() {
           {[
             ["不保存照片", "照片仅用于完成当前请求，本站不建立个人档案或历史记录。"],
             ["看不清就拒绝", "手掌不完整或纹理模糊时，系统会要求重拍，而不是编造结果。"],
-            ["不替你做决定", "所有内容是文化参考和自我探索，不预测疾病、财富或关系结果。"],
+            ["不替你做决定", "所有内容是文化参考和自我探索，不预测疾病、财富、寿命、死亡或关系结果。"],
           ].map(([title, text]) => (
             <article className="trust-card" key={title}>
               <Check className="h-5 w-5 text-amber-300/70" />

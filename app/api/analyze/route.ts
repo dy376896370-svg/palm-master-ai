@@ -364,7 +364,7 @@ function buildFastReport(
     },
     safety: {
       entertainmentOnly: true,
-      disclaimer: "仅供娱乐参考，不构成医疗、投资、婚姻或人生决策建议。",
+      disclaimer: "仅供娱乐参考，不构成医疗、投资、婚姻、寿命、死亡或人生决策建议。",
       prohibitedAdviceDetected: false,
     },
     share: {

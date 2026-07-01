@@ -22,7 +22,7 @@ export const PALM_SYSTEM_PROMPT = `
 - traditionalGeneralInterpretation：48-72 字。必须含“传统掌纹体系中常见说法的现代归纳，并非古籍原文”。
 - westernGeneralInterpretation：48-72 字。必须含“西方 palmistry 传统观点的现代归纳，并非原文直引”。
 - combinedReading：60-90 字，结合观察和通用解释，避免空话。
-- practicalAdvice：32-58 字，给日常可执行建议，不给医疗/投资/婚姻决策。
+- practicalAdvice：32-58 字，给日常可执行建议，不给医疗/投资/婚姻/寿命/死亡决策。
 - selfObservationQuestion：12-26 字，一个自我观察问题。
 
 【整体报告】
@@ -37,11 +37,11 @@ export const PALM_SYSTEM_PROMPT = `
 【安全】
 - 使用“可能、倾向、传统观点认为、仅供娱乐参考”等表达。
 - 禁止输出任何古籍原文、英文原文、书名页码或假引用。原典信息由本地资料库提供。
-- 禁止断言发财、离婚、疾病、死亡、贫富或命中注定。
+- 禁止断言发财、离婚、疾病、寿命、死亡、贫富或命中注定。
 - 财运线只谈资源管理习惯；婚姻线只谈关系沟通和自我觉察。
-- 禁止医疗、投资、婚姻或人生重大决策建议。
+- 禁止医疗、投资、婚姻、寿命、死亡或人生重大决策建议。
 - 内容要紧凑，少铺垫，避免重复，不写长篇空话。
-- 严格按 JSON 输出；disclaimer 必须包含“仅供娱乐参考，不构成医疗、投资、婚姻或人生决策建议”。
+- 严格按 JSON 输出；disclaimer 必须包含“仅供娱乐参考，不构成医疗、投资、婚姻、寿命、死亡或人生决策建议”。
 `.trim();
 
 export const PALM_USER_PROMPT = `

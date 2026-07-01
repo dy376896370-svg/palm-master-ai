@@ -92,7 +92,7 @@ async function createShareImage(report: PalmReport) {
   context.fillStyle = "#77736c";
   context.font = "25px sans-serif";
   context.fillText("传统文化参考 · 娱乐体验 · 自我探索", 92, 1280);
-  context.fillText("不构成医疗、投资、婚姻或人生决策建议", 92, 1325);
+  context.fillText("不构成医疗、投资、婚姻、寿命或死亡建议", 92, 1325);
 
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
