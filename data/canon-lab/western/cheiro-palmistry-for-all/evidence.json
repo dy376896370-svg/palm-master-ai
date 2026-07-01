@@ -1,0 +1,47 @@
+[
+  {
+    "evidenceId": "cheiro-pfa-evidence-001",
+    "claimId": "cheiro-pfa-claim-001",
+    "documentId": "western-cheiro-palmistry-for-all-1916",
+    "sourceUrl": "https://www.gutenberg.org/files/20480/20480-h/20480-h.htm",
+    "evidenceType": "chapter_toc_and_text_review_pending",
+    "confidence": "medium",
+    "notes": "Project Gutenberg contents list includes the Head Line chapter and subsections. Full paragraph-level evidence still requires manual verification."
+  },
+  {
+    "evidenceId": "cheiro-pfa-evidence-002",
+    "claimId": "cheiro-pfa-claim-002",
+    "documentId": "western-cheiro-palmistry-for-all-1916",
+    "sourceUrl": "https://www.gutenberg.org/files/20480/20480-h/20480-h.htm",
+    "evidenceType": "chapter_toc_and_text_review_pending",
+    "confidence": "medium",
+    "notes": "Project Gutenberg contents list includes The Line of Life and Its Variations. Full extraction should verify each life-line claim against the source text."
+  },
+  {
+    "evidenceId": "cheiro-pfa-evidence-003",
+    "claimId": "cheiro-pfa-claim-003",
+    "documentId": "western-cheiro-palmistry-for-all-1916",
+    "sourceUrl": "https://www.gutenberg.org/files/20480/20480-h/20480-h.htm",
+    "evidenceType": "chapter_toc_and_text_review_pending",
+    "confidence": "medium",
+    "notes": "Project Gutenberg contents list includes The Line of Heart as indicating the Affectionate and Emotional Nature. Paragraph-level review remains pending."
+  },
+  {
+    "evidenceId": "cheiro-pfa-evidence-004",
+    "claimId": "cheiro-pfa-claim-004",
+    "documentId": "western-cheiro-palmistry-for-all-1916",
+    "sourceUrl": "https://www.gutenberg.org/files/20480/20480-h/20480-h.htm",
+    "evidenceType": "chapter_toc_and_text_review_pending",
+    "confidence": "medium",
+    "notes": "Project Gutenberg contents list includes The Line of Destiny Or Fate and subsections. Claims should be reviewed to remove deterministic wording before import."
+  },
+  {
+    "evidenceId": "cheiro-pfa-evidence-005",
+    "claimId": "cheiro-pfa-claim-005",
+    "documentId": "western-cheiro-palmistry-for-all-1916",
+    "sourceUrl": "https://www.gutenberg.org/files/20480/20480-h/20480-h.htm",
+    "evidenceType": "chapter_toc_and_text_review_pending",
+    "confidence": "medium",
+    "notes": "Project Gutenberg contents list includes The Thumb and related subsections. Need human review for wording and bias filtering."
+  }
+]

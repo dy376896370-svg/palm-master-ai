@@ -1,0 +1,62 @@
+[
+  {
+    "claimId": "cheiro-pfa-claim-001",
+    "topicId": "head_line",
+    "sourceTitle": "Palmistry for All",
+    "sourceAuthor": "Cheiro",
+    "sourceUrl": "https://www.gutenberg.org/ebooks/20480",
+    "chapterOrSection": "The Line of Head or the Indications of Mentality",
+    "claimZh": "Cheiro 将智慧线视为理解思维方式、判断力与心理倾向的重要线索；在现代产品中应把它转译为思考习惯与决策风格的文化参考，而不是智力高低判断。",
+    "originalText": "",
+    "verificationStatus": "pending",
+    "notes": "待人工逐段核验原文位置和现代转译边界。"
+  },
+  {
+    "claimId": "cheiro-pfa-claim-002",
+    "topicId": "life_line",
+    "sourceTitle": "Palmistry for All",
+    "sourceAuthor": "Cheiro",
+    "sourceUrl": "https://www.gutenberg.org/ebooks/20480",
+    "chapterOrSection": "The Line of Life and Its Variations",
+    "claimZh": "Cheiro 将生命线作为活力、体质感受与生活节奏的传统观察对象；产品表达时应避免把生命线解释为寿命预测。",
+    "originalText": "",
+    "verificationStatus": "pending",
+    "notes": "需核验章节中关于生命线变化的具体说法，并剔除决定论表达。"
+  },
+  {
+    "claimId": "cheiro-pfa-claim-003",
+    "topicId": "heart_line",
+    "sourceTitle": "Palmistry for All",
+    "sourceAuthor": "Cheiro",
+    "sourceUrl": "https://www.gutenberg.org/ebooks/20480",
+    "chapterOrSection": "The Line of Heart as indicating the Affectionate and Emotional Nature",
+    "claimZh": "Cheiro 将感情线与情感表达、亲密关系中的反应方式和情绪倾向联系起来；现代转译应聚焦自我觉察，不作婚恋结论。",
+    "originalText": "",
+    "verificationStatus": "pending",
+    "notes": "需人工确认具体段落，并避免导入婚姻断言。"
+  },
+  {
+    "claimId": "cheiro-pfa-claim-004",
+    "topicId": "fate_line",
+    "sourceTitle": "Palmistry for All",
+    "sourceAuthor": "Cheiro",
+    "sourceUrl": "https://www.gutenberg.org/ebooks/20480",
+    "chapterOrSection": "The Line of Destiny Or Fate",
+    "claimZh": "Cheiro 将命运线用于讨论责任、事业路径和外部环境影响；现代产品中应改写为职业节奏与目标感的文化象征，不作成功失败预测。",
+    "originalText": "",
+    "verificationStatus": "pending",
+    "notes": "需核验不同起点相关段落，并重写绝对化语气。"
+  },
+  {
+    "claimId": "cheiro-pfa-claim-005",
+    "topicId": "thumb",
+    "sourceTitle": "Palmistry for All",
+    "sourceAuthor": "Cheiro",
+    "sourceUrl": "https://www.gutenberg.org/ebooks/20480",
+    "chapterOrSection": "The Thumb",
+    "claimZh": "Cheiro 特别强调拇指在性格判断中的地位，常把它与意志、控制力和处事弹性联系起来；现代解释应转为行动方式与自我管理风格。",
+    "originalText": "",
+    "verificationStatus": "pending",
+    "notes": "需核验拇指章节，并删除带有攻击性或时代偏见的标签。"
+  }
+]
