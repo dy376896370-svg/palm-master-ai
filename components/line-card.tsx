@@ -1,4 +1,5 @@
 import { BookOpenText, CircleAlert, ExternalLink, Sparkles } from "lucide-react";
+import { getWesternPalmistryReferences } from "@/lib/canon-lab";
 import type { PalmLine } from "@/lib/report-schema";
 
 const confidenceLabels: Record<PalmLine["confidence"], string> = {
@@ -45,6 +46,7 @@ export function LineCard({
     chineseClassics: [],
     westernPalmistry: [],
   };
+  const westernReferences = getWesternPalmistryReferences(line.id);
   const hasAnnotation = line.annotation.points.length > 1 && line.visionConfidence >= 0.55;
 
   return (
@@ -140,6 +142,51 @@ export function LineCard({
             {line.selfObservationQuestion}
           </p>
         </div>
+      </div>
+
+      <div className="source-section mt-7">
+        <div className="source-section-title">
+          <BookOpenText className="h-4 w-4" />
+          <div>
+            <h4>Western Palmistry 参考</h4>
+            <p>
+              当前为历史掌纹学资料的现代转译，不是科学判断；仅展示 Canon Lab 已存在的 Claim。
+            </p>
+          </div>
+        </div>
+        {westernReferences.length ? (
+          <div className="mt-4 space-y-3">
+            {westernReferences.map((reference) => (
+              <article className="source-card" key={reference.claimId}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="source-book">
+                    {reference.sourceTitle} · {reference.sourceAuthor}
+                  </p>
+                  <a href={reference.sourceUrl} target="_blank" rel="noreferrer">
+                    来源 <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+                <p className="mt-3 leading-7 text-stone-300">
+                  {reference.claimZh}
+                </p>
+                <p className="mt-3 text-sm leading-6 text-stone-500">
+                  <strong>章节：</strong>{reference.chapterOrSection}
+                </p>
+                <p className="text-sm leading-6 text-stone-500">
+                  <strong>核验状态：</strong>{reference.verificationStatus}
+                  {reference.evidence.length
+                    ? ` · 证据链：${reference.evidence
+                        .map((item) => `${item.documentId} / ${item.confidence}`)
+                        .join("；")}`
+                    : ""}
+                </p>
+                <p className="source-note">{reference.notes}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="source-empty mt-4">该项原典资料待校勘</p>
+        )}
       </div>
 
       {line.visionStatus !== "detected" && (
