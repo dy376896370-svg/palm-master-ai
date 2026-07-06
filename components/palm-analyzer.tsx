@@ -55,6 +55,85 @@ type AnalyzeResponse = {
   };
 };
 
+type ManualFeatures = {
+  lifeLine: {
+    visibility: "not_sure" | "clear" | "unclear";
+    length: "not_sure" | "long" | "medium" | "short";
+    depth: "not_sure" | "deep" | "light";
+    continuity: "not_sure" | "continuous" | "broken" | "forked";
+  };
+  headLine: {
+    visibility: "not_sure" | "clear" | "unclear";
+    direction: "not_sure" | "straight" | "curved";
+  };
+  heartLine: {
+    visibility: "not_sure" | "clear" | "unclear";
+    depth: "not_sure" | "deep" | "light";
+    continuity: "not_sure" | "continuous" | "broken" | "forked";
+  };
+  fateLine: {
+    visibility: "not_sure" | "clear" | "unclear";
+    depth: "not_sure" | "deep" | "light";
+  };
+  palmShape: "unclear" | "square" | "long" | "round" | "fire" | "water" | "earth" | "air";
+  thumb: "unclear" | "strong" | "weak" | "flexible";
+};
+
+const defaultManualFeatures: ManualFeatures = {
+  lifeLine: {
+    visibility: "not_sure",
+    length: "not_sure",
+    depth: "not_sure",
+    continuity: "not_sure",
+  },
+  headLine: {
+    visibility: "not_sure",
+    direction: "not_sure",
+  },
+  heartLine: {
+    visibility: "not_sure",
+    depth: "not_sure",
+    continuity: "not_sure",
+  },
+  fateLine: {
+    visibility: "not_sure",
+    depth: "not_sure",
+  },
+  palmShape: "unclear",
+  thumb: "unclear",
+};
+
+function FeatureSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: Array<[string, string]>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-600">
+        {label}
+      </span>
+      <select
+        className="mt-2 h-10 w-full rounded-xl border border-white/10 bg-black/35 px-3 text-sm text-zinc-200 outline-none transition focus:border-white/25"
+        onChange={(event) => onChange(event.target.value)}
+        value={value}
+      >
+        {options.map(([optionValue, optionLabel]) => (
+          <option key={optionValue} value={optionValue}>
+            {optionLabel}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function safeParseAnalyzeResponse(text: string): AnalyzeResponse | null {
   if (!text.trim()) return null;
 
@@ -118,6 +197,9 @@ export function PalmAnalyzer() {
   const [loading, setLoading] = useState(false);
   const [consented, setConsented] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [manualFeatures, setManualFeatures] = useState<ManualFeatures>(
+    defaultManualFeatures,
+  );
   const uploadRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
 
@@ -189,6 +271,7 @@ export function PalmAnalyzer() {
     setNotice("");
     const body = new FormData();
     body.append("image", file);
+    body.append("manualFeatures", JSON.stringify(manualFeatures));
     const controller = new AbortController();
     const timeoutId = window.setTimeout(
       () => controller.abort(),
@@ -265,6 +348,7 @@ export function PalmAnalyzer() {
     setNotice("");
     setConsented(false);
     setElapsedSeconds(0);
+    setManualFeatures(defaultManualFeatures);
     if (uploadRef.current) uploadRef.current.value = "";
     if (cameraRef.current) cameraRef.current.value = "";
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -396,6 +480,135 @@ export function PalmAnalyzer() {
             <Button variant="secondary" onClick={() => cameraRef.current?.click()} type="button">
               <Camera className="h-4 w-4" />打开摄像头
             </Button>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-white">
+                  看不清时，补充可见特征
+                </p>
+                <p className="mt-1 text-xs leading-5 text-zinc-500">
+                  可选项。不是手动画线，只把你看得见的现象交给 Palm Feature Engine。
+                </p>
+              </div>
+              <Badge>2.0</Badge>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <FeatureSelect
+                label="生命线是否清晰"
+                value={manualFeatures.lifeLine.visibility}
+                options={[
+                  ["not_sure", "不确定"],
+                  ["clear", "清晰"],
+                  ["unclear", "模糊 / 看不清"],
+                ]}
+                onChange={(value) =>
+                  setManualFeatures((current) => ({
+                    ...current,
+                    lifeLine: {
+                      ...current.lifeLine,
+                      visibility: value as ManualFeatures["lifeLine"]["visibility"],
+                    },
+                  }))
+                }
+              />
+              <FeatureSelect
+                label="生命线长度"
+                value={manualFeatures.lifeLine.length}
+                options={[
+                  ["not_sure", "不确定"],
+                  ["long", "偏长"],
+                  ["medium", "中等"],
+                  ["short", "偏短"],
+                ]}
+                onChange={(value) =>
+                  setManualFeatures((current) => ({
+                    ...current,
+                    lifeLine: {
+                      ...current.lifeLine,
+                      length: value as ManualFeatures["lifeLine"]["length"],
+                    },
+                  }))
+                }
+              />
+              <FeatureSelect
+                label="智慧线方向"
+                value={manualFeatures.headLine.direction}
+                options={[
+                  ["not_sure", "不确定"],
+                  ["straight", "偏直"],
+                  ["curved", "偏弯"],
+                ]}
+                onChange={(value) =>
+                  setManualFeatures((current) => ({
+                    ...current,
+                    headLine: {
+                      ...current.headLine,
+                      direction: value as ManualFeatures["headLine"]["direction"],
+                    },
+                  }))
+                }
+              />
+              <FeatureSelect
+                label="感情线状态"
+                value={manualFeatures.heartLine.continuity}
+                options={[
+                  ["not_sure", "不确定"],
+                  ["continuous", "连续"],
+                  ["broken", "断续"],
+                  ["forked", "有分叉"],
+                ]}
+                onChange={(value) =>
+                  setManualFeatures((current) => ({
+                    ...current,
+                    heartLine: {
+                      ...current.heartLine,
+                      continuity:
+                        value as ManualFeatures["heartLine"]["continuity"],
+                    },
+                  }))
+                }
+              />
+              <FeatureSelect
+                label="感情线深浅"
+                value={manualFeatures.heartLine.depth}
+                options={[
+                  ["not_sure", "不确定"],
+                  ["deep", "较深 / 明显"],
+                  ["light", "较浅"],
+                ]}
+                onChange={(value) =>
+                  setManualFeatures((current) => ({
+                    ...current,
+                    heartLine: {
+                      ...current.heartLine,
+                      depth: value as ManualFeatures["heartLine"]["depth"],
+                    },
+                  }))
+                }
+              />
+              <FeatureSelect
+                label="手型"
+                value={manualFeatures.palmShape}
+                options={[
+                  ["unclear", "不确定"],
+                  ["square", "方掌"],
+                  ["long", "长掌"],
+                  ["round", "圆掌"],
+                  ["fire", "火型"],
+                  ["water", "水型"],
+                  ["earth", "土型"],
+                  ["air", "风型"],
+                ]}
+                onChange={(value) =>
+                  setManualFeatures((current) => ({
+                    ...current,
+                    palmShape: value as ManualFeatures["palmShape"],
+                  }))
+                }
+              />
+            </div>
           </div>
 
           <Button

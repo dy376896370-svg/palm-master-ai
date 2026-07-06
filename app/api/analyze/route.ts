@@ -9,11 +9,15 @@ import { ProxyAgent } from "undici";
 import { PALM_SYSTEM_PROMPT, PALM_USER_PROMPT } from "@/lib/palm-prompt";
 import {
   evaluatePalmRules,
-  type PalmFeatureInput,
   type PalmDossier,
 } from "@/lib/palmistry/rules";
+import {
+  buildPalmFeatureSet,
+  type PalmManualFeatureInput,
+} from "@/lib/palmistry/feature-engine";
 import { getPalmCanonClaimsByLine } from "@/lib/palmistry/canon";
 import { detectPalmPatterns } from "@/lib/palmistry/pattern-engine";
+import { buildPalmReportEngineContext } from "@/lib/palmistry/report-engine";
 import {
   palmAiReportSchema,
   palmReportSchema,
@@ -253,55 +257,6 @@ const failureReasonValues = new Set([
   "too_long",
 ]);
 
-function inferPalmFeatures(
-  visionMap: Map<PalmLineId, NormalizedVisionLine>,
-): PalmFeatureInput {
-  const line = (id: PalmLineId) => visionMap.get(id) ?? DEFAULT_ANNOTATIONS[id];
-  const life = line("life-line");
-  const head = line("head-line");
-  const heart = line("heart-line");
-  const fate = line("fate-line");
-
-  return {
-    lifeLine:
-      life.visionStatus === "unavailable"
-        ? "unclear"
-        : life.visionConfidence >= 0.72
-          ? "long"
-          : "medium",
-    headLine:
-      head.visionStatus === "unavailable"
-        ? "unclear"
-        : head.annotation.points.length >= 3 &&
-            Math.abs(
-              (head.annotation.points.at(-1)?.y ?? 0) -
-                (head.annotation.points[0]?.y ?? 0),
-            ) > 0.1
-          ? "curved"
-          : "straight",
-    heartLine:
-      heart.visionStatus === "unavailable"
-        ? "unclear"
-        : heart.failureReasons.includes("candidate_fragmented")
-          ? "forked"
-          : heart.visionConfidence >= 0.68
-            ? "deep"
-            : "light",
-    fateLine:
-      fate.visionStatus === "unavailable"
-        ? "absent"
-        : fate.visionConfidence >= 0.68
-          ? "strong"
-          : "weak",
-    palmShape: "unclear",
-    sunLine: "unclear",
-    specialMarks: [
-      heart.failureReasons.includes("candidate_fragmented") ? "fork" : "",
-      life.failureReasons.includes("candidate_fragmented") ? "island" : "",
-    ].filter(Boolean),
-  };
-}
-
 function mergePalmProfile(
   aiProfile: PalmDossier | undefined,
   ruleProfile: PalmDossier,
@@ -361,6 +316,7 @@ function jsonError(
 
 function buildFastReport(
   visionMap: Map<PalmLineId, NormalizedVisionLine>,
+  manualInput: PalmManualFeatureInput = {},
 ): PalmReport {
   const merged = new Map<PalmLineId, NormalizedVisionLine>(
     Object.entries(DEFAULT_ANNOTATIONS) as Array<[PalmLineId, NormalizedVisionLine]>,
@@ -382,8 +338,12 @@ function buildFastReport(
       ),
     ),
   );
-  const ruleProfile = evaluatePalmRules(inferPalmFeatures(merged));
-  const layerInsights = buildLayerInsights(merged);
+  const featureSet = buildPalmFeatureSet({
+    visionLines: Array.from(merged.values()),
+    manualInput,
+  });
+  const ruleProfile = evaluatePalmRules(featureSet.features);
+  const layerInsights = buildLayerInsights(featureSet);
 
   const lines = Array.from(merged.values()).map((visionLine) => {
     const meta = LINE_META[visionLine.id];
@@ -427,6 +387,7 @@ function buildFastReport(
       ...ruleProfile,
       summary: `本次进入快速模式。从娱乐角度看，关键词是「${ruleProfile.luckyKeyword}」，适合先把掌纹当作自我观察卡。`,
     },
+    featureEngine: layerInsights.featureEngine,
     patternEngine: layerInsights.patternEngine,
     sourceTrace: layerInsights.sourceTrace,
     imageQuality: {
@@ -636,8 +597,19 @@ function buildVisionPrompt(
   return `\n\nPalmVisionResult（由前端图像处理 pipeline 产生；模型只能读取这些结构化结果，不得自行看图、猜坐标或补线）：photoQuality={${qualitySummary}}; lines={${summary}}`;
 }
 
-function buildRulePrompt(profile: PalmDossier) {
-  return `\n\nPalm Master 本地知识库与规则引擎结果（必须结合，但不要说成科学判断）：${JSON.stringify(profile)}`;
+function parseManualFeatures(value: FormDataEntryValue | null): PalmManualFeatureInput {
+  if (typeof value !== "string" || !value.trim()) return {};
+
+  try {
+    const parsed = JSON.parse(value) as PalmManualFeatureInput;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function buildRulePrompt(profile: PalmDossier, featureSummary: string, patternSummary: string) {
+  return `\n\nPalm Master 2.0 结构化结果（必须结合，但不要说成科学判断）：features=${featureSummary}; patterns=${patternSummary}; profile=${JSON.stringify(profile)}`;
 }
 
 function buildLineConclusionSources(
@@ -687,29 +659,39 @@ function buildLineConclusionSources(
 }
 
 function buildLayerInsights(
-  visionMap: Map<PalmLineId, NormalizedVisionLine>,
-): Pick<PalmReport, "patternEngine" | "sourceTrace"> {
-  const patternResult = detectPalmPatterns(inferPalmFeatures(visionMap));
-  const matchedPatterns = patternResult.matchedPatterns.map((pattern) => ({
-    id: pattern.id,
-    name: pattern.name,
-    level: pattern.level,
-    description: pattern.description,
-    lines: pattern.lines,
-    source: pattern.source,
-    safetyNote: pattern.safetyNote,
-  }));
-  const canonClaimCount = Array.from(visionMap.keys()).reduce(
+  featureSet: ReturnType<typeof buildPalmFeatureSet>,
+): Pick<PalmReport, "featureEngine" | "patternEngine" | "sourceTrace"> {
+  const patternResult = detectPalmPatterns(featureSet.features);
+  const reportContext = buildPalmReportEngineContext({
+    featureSet,
+    patterns: patternResult.matchedPatterns,
+  });
+  const canonLineIds: PalmLineId[] = [
+    "life-line",
+    "head-line",
+    "heart-line",
+    "fate-line",
+    "wealth-line",
+    "marriage-line",
+  ];
+  const canonClaimCount = canonLineIds.reduce(
     (count, lineId) => count + getPalmCanonClaimsByLine(lineId).length,
     0,
   );
 
   return {
+    featureEngine: {
+      version: "2.0",
+      inputSources: featureSet.inputSources,
+      summary: reportContext.featureSummary,
+      reliability: featureSet.reliability,
+      observations: featureSet.observations,
+    },
     patternEngine: {
-      summary: matchedPatterns.length
-        ? `Pattern Engine 本次识别出 ${matchedPatterns.length} 个娱乐文化模式；这些模式只用于组织报告，不作命运判断。`
+      summary: reportContext.patternItems.length
+        ? `Pattern Engine 本次识别出 ${reportContext.patternItems.length} 个娱乐文化模式；这些模式只用于组织报告，不作命运判断。`
         : "Pattern Engine 未识别出稳定专属模式，本次以通用掌纹知识和照片质量诊断为主。",
-      matchedPatterns,
+      matchedPatterns: reportContext.patternItems,
     },
     sourceTrace: [
       {
@@ -720,8 +702,8 @@ function buildLayerInsights(
       {
         sourceType: "pattern",
         title: "Palm Pattern Engine",
-        detail: matchedPatterns.length
-          ? `触发 ${matchedPatterns.length} 个规则模式，用于生成 Palm Profile。`
+        detail: reportContext.patternItems.length
+          ? `触发 ${reportContext.patternItems.length} 个规则模式，用于生成 Palm Profile。`
           : "未触发稳定规则模式，报告转为通用文化解释。",
       },
       {
@@ -742,6 +724,7 @@ function buildLayerInsights(
 
 export async function POST(request: Request) {
   let fallbackVisionMap = new Map<PalmLineId, NormalizedVisionLine>();
+  let fallbackManualInput: PalmManualFeatureInput = {};
 
   try {
     if (isRateLimited(getClientId(request))) {
@@ -755,6 +738,8 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const image = formData.get("image");
     const { visionMap, qualitySummary } = parseVisionPayload(formData.get("vision"));
+    const manualInput = parseManualFeatures(formData.get("manualFeatures"));
+    fallbackManualInput = manualInput;
     fallbackVisionMap = visionMap;
 
     if (!(image instanceof File)) {
@@ -791,16 +776,25 @@ export async function POST(request: Request) {
     });
 
     const visionPrompt = buildVisionPrompt(visionMap, qualitySummary);
-    const ruleProfile = evaluatePalmRules(inferPalmFeatures(visionMap));
+    const mergedVisionMap = new Map<PalmLineId, NormalizedVisionLine>([
+      ...(Object.entries(DEFAULT_ANNOTATIONS) as Array<
+        [PalmLineId, NormalizedVisionLine]
+      >),
+      ...visionMap,
+    ]);
+    const featureSet = buildPalmFeatureSet({
+      visionLines: Array.from(mergedVisionMap.values()),
+      manualInput,
+    });
+    const ruleProfile = evaluatePalmRules(featureSet.features);
     const layerInsights = buildLayerInsights(
-      new Map<PalmLineId, NormalizedVisionLine>([
-        ...(Object.entries(DEFAULT_ANNOTATIONS) as Array<
-          [PalmLineId, NormalizedVisionLine]
-        >),
-        ...visionMap,
-      ]),
+      featureSet,
     );
-    const rulePrompt = buildRulePrompt(ruleProfile);
+    const rulePrompt = buildRulePrompt(
+      ruleProfile,
+      layerInsights.featureEngine.summary,
+      layerInsights.patternEngine.summary,
+    );
     const response = await client.responses.parse({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       input: [
@@ -829,6 +823,7 @@ export async function POST(request: Request) {
     const report = palmReportSchema.parse({
       ...response.output_parsed,
       profile: mergePalmProfile(response.output_parsed.profile, ruleProfile),
+      featureEngine: layerInsights.featureEngine,
       patternEngine: layerInsights.patternEngine,
       sourceTrace: layerInsights.sourceTrace,
       reportId: `palm_${randomUUID().slice(0, 8)}`,
@@ -880,7 +875,7 @@ export async function POST(request: Request) {
         /timed?\s*out|timeout|aborted/i.test(error.message));
 
     if (isTimeout) {
-      const fastReport = buildFastReport(fallbackVisionMap);
+      const fastReport = buildFastReport(fallbackVisionMap, fallbackManualInput);
       return Response.json({
         report: fastReport,
         error: {
@@ -901,7 +896,7 @@ export async function POST(request: Request) {
       /zod|schema|validation|parse/i.test(`${error.name} ${error.message}`);
 
     if (isSchemaIssue) {
-      const fastReport = buildFastReport(fallbackVisionMap);
+      const fastReport = buildFastReport(fallbackVisionMap, fallbackManualInput);
       return Response.json({
         report: fastReport,
         fallback: {

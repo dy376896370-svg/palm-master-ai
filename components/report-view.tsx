@@ -313,6 +313,65 @@ export function ReportView({
         viewport={{ once: true, margin: "-80px" }}
         transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       >
+        <p className="section-kicker">Palm Feature Engine</p>
+        <h3 className="mt-2 font-serif text-2xl text-stone-100">
+          本次输入与关键特征
+        </h3>
+        <p className="mt-3 text-sm leading-7 text-stone-500">
+          {displayReport.featureEngine.summary}
+        </p>
+        <div className="mt-5 grid gap-4 lg:grid-cols-[220px_1fr]">
+          <div className="rounded-2xl border border-white/8 bg-white/[0.035] p-5">
+            <p className="field-label">输入可靠度</p>
+            <p className="mt-3 font-serif text-5xl text-amber-100">
+              {displayReport.featureEngine.reliability.score}
+            </p>
+            <p className="mt-2 text-xs uppercase tracking-[0.2em] text-stone-500">
+              {displayReport.featureEngine.reliability.label}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {displayReport.featureEngine.inputSources.map((source) => (
+                <span className="feature-tag" key={source}>{source}</span>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {displayReport.featureEngine.observations.slice(0, 8).map((item) => (
+              <div
+                className="rounded-xl border border-white/8 bg-black/15 p-4"
+                key={item.id}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="feature-tag">{item.source}</span>
+                  <span className="text-xs text-stone-600">
+                    {Math.round(item.confidence * 100)}%
+                  </span>
+                </div>
+                <p className="mt-3 text-sm font-semibold text-stone-200">
+                  {item.label}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-stone-400">
+                  {item.value || "未明确"}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-stone-600">
+                  {item.note}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-5 rounded-xl border border-amber-300/10 bg-amber-950/10 p-4 text-sm leading-7 text-amber-100/75">
+          {displayReport.featureEngine.reliability.reasons.join(" ")}
+        </div>
+      </motion.article>
+
+      <motion.article
+        className="report-shell mt-6"
+        initial={{ opacity: 0, y: 18 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-80px" }}
+        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+      >
         <p className="section-kicker">结论来源链</p>
         <h3 className="mt-2 font-serif text-2xl text-stone-100">
           这份报告如何生成

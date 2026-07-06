@@ -53,9 +53,26 @@ const patternSummarySchema = z.object({
   name: z.string(),
   level: z.enum(["strong", "balanced", "supportive", "caution"]),
   description: z.string(),
+  meaning: z.string(),
   lines: z.array(z.string()),
+  conditions: z.object({
+    required: z.array(z.string()),
+    bonus: z.array(z.string()).optional(),
+    caution: z.array(z.string()).optional(),
+  }),
   source: z.enum(["palm-knowledge", "canon-lab", "rule-engine"]),
+  sourceType: z.enum(["palm-knowledge", "canon-lab", "rule-engine"]),
+  confidence: z.number().min(0).max(1),
   safetyNote: z.string(),
+});
+
+const featureObservationSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  source: z.enum(["vision", "manual", "fallback"]),
+  value: z.string(),
+  confidence: z.number().min(0).max(1),
+  note: z.string(),
 });
 
 const annotationSchema = z.object({
@@ -207,6 +224,17 @@ export const palmAiReportSchema = palmReportBaseSchema.extend({
 });
 
 export const palmReportSchema = palmReportBaseSchema.extend({
+  featureEngine: z.object({
+    version: z.literal("2.0"),
+    inputSources: z.array(z.enum(["vision", "manual", "fallback"])),
+    summary: z.string(),
+    reliability: z.object({
+      score: z.number().min(0).max(100),
+      label: z.enum(["high", "medium", "low"]),
+      reasons: z.array(z.string()),
+    }),
+    observations: z.array(featureObservationSchema),
+  }),
   patternEngine: z.object({
     summary: z.string(),
     matchedPatterns: z.array(patternSummarySchema),
