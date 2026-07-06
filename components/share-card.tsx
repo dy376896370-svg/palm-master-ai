@@ -46,53 +46,67 @@ async function createShareImage(report: PalmReport) {
 
   context.fillStyle = "#d7b56d";
   context.font = "500 28px serif";
-  context.fillText("PALM MASTER AI", 92, 120);
+  context.fillText("PALM MASTER", 92, 120);
 
   context.fillStyle = "#f2efe8";
   context.font = "600 72px serif";
-  context.fillText("我的掌心文化报告", 92, 245);
+  context.fillText("你的掌纹档案", 92, 245);
 
   context.fillStyle = "#8d8981";
   context.font = "30px sans-serif";
-  context.fillText("五大体系联合解读 · 仅供娱乐参考", 92, 305);
+  context.fillText("AI Palm Canon · 仅供娱乐参考", 92, 305);
 
   context.fillStyle = "#d7b56d";
   context.font = "500 26px sans-serif";
-  context.fillText("本次关键词", 92, 410);
+  context.fillText("综合评分", 92, 410);
 
-  let y = 480;
+  const overallScore = Math.round(
+    Object.values(report.profile.scores).reduce((sum, score) => sum + score, 0) /
+      Object.keys(report.profile.scores).length,
+  );
+
+  context.fillStyle = "#f2efe8";
+  context.font = "700 96px serif";
+  context.fillText(String(overallScore), 92, 525);
+
+  context.fillStyle = "#d7b56d";
+  context.font = "500 26px sans-serif";
+  context.fillText(`幸运关键词：${report.profile.luckyKeyword}`, 92, 600);
+
+  let y = 695;
   context.font = "500 42px sans-serif";
-  for (const theme of report.finalSynthesis.keyThemes.slice(0, 3)) {
+  for (const item of report.profile.achievements.slice(0, 3)) {
     context.fillStyle = "#eee8dd";
-    context.fillText(`◇ ${theme}`, 92, y);
+    context.fillText(`◇ ${item.name}`, 92, y);
     y += 78;
   }
 
   context.strokeStyle = "rgba(255,255,255,.1)";
   context.beginPath();
-  context.moveTo(92, 745);
-  context.lineTo(988, 745);
+  context.moveTo(92, 895);
+  context.lineTo(988, 895);
   context.stroke();
 
   context.fillStyle = "#d7b56d";
   context.font = "500 26px sans-serif";
-  context.fillText("AI 综合寄语", 92, 825);
+  context.fillText("AI 总结", 92, 975);
 
   context.fillStyle = "#c8c3ba";
   context.font = "34px sans-serif";
   const summary =
     report.share.oneLineSummary ||
+    report.profile.summary ||
     report.share.summary ||
     report.overallImpression.modernReflection;
   const summaryLines = wrapText(context, summary, 860).slice(0, 6);
   summaryLines.forEach((line, index) => {
-    context.fillText(line, 92, 895 + index * 58);
+    context.fillText(line, 92, 1045 + index * 58);
   });
 
   context.fillStyle = "#77736c";
   context.font = "25px sans-serif";
-  context.fillText("传统文化参考 · 娱乐体验 · 自我探索", 92, 1280);
-  context.fillText("不构成医疗、投资、婚姻、寿命或死亡建议", 92, 1325);
+  context.fillText("传统文化娱乐参考 · 不代表真实命运", 92, 1280);
+  context.fillText("不作为医疗、投资、婚姻、职业决策依据", 92, 1325);
 
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
@@ -121,7 +135,7 @@ export function ShareCard({ report }: { report: PalmReport }) {
         await navigator.share({
           files: [file],
           title: report.share.title,
-          text: "我的 AI 掌心文化报告，仅供娱乐参考。",
+          text: `我的 Palm Master 掌纹档案：${report.profile.luckyKeyword}。仅供娱乐参考。`,
         });
         return;
       }

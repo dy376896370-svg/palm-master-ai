@@ -14,6 +14,16 @@ const visionStatusLabels: Record<PalmLine["visionStatus"], string> = {
   unavailable: "无法稳定判断",
 };
 
+const sourceTypeLabels: Record<
+  PalmLine["conclusionSources"][number]["sourceType"],
+  string
+> = {
+  vision: "vision",
+  pattern: "pattern",
+  canon: "canon",
+  ai: "ai",
+};
+
 const failureReasonLabels: Record<PalmLine["failureReasons"][number], string> = {
   image_blurry: "照片略模糊",
   palm_rotated: "手掌角度偏斜",
@@ -70,6 +80,28 @@ export function LineCard({
         >
           {visionStatusLabels[line.visionStatus]} · {confidenceLabels[line.confidence]}
         </span>
+      </div>
+
+      <div className="mt-5 rounded-xl border border-white/6 bg-black/15 p-4">
+        <p className="field-label">本条结论来源</p>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {line.conclusionSources.map((source) => (
+            <div
+              className="rounded-lg border border-white/6 bg-white/[0.03] p-3"
+              key={`${line.id}-${source.sourceType}-${source.title}`}
+            >
+              <span className="feature-tag">
+                {sourceTypeLabels[source.sourceType]}
+              </span>
+              <p className="mt-2 text-sm font-semibold text-stone-200">
+                {source.title}
+              </p>
+              <p className="mt-1 text-xs leading-6 text-stone-500">
+                {source.detail}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {hasAnnotation ? (

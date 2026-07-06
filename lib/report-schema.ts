@@ -42,6 +42,22 @@ const palmLineSourcesSchema = z.object({
   westernPalmistry: z.array(westernPalmistrySourceSchema),
 });
 
+const conclusionSourceSchema = z.object({
+  sourceType: z.enum(["vision", "pattern", "canon", "ai"]),
+  title: z.string(),
+  detail: z.string(),
+});
+
+const patternSummarySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  level: z.enum(["strong", "balanced", "supportive", "caution"]),
+  description: z.string(),
+  lines: z.array(z.string()),
+  source: z.enum(["palm-knowledge", "canon-lab", "rule-engine"]),
+  safetyNote: z.string(),
+});
+
 const annotationSchema = z.object({
   type: z.literal("path"),
   points: z.array(
@@ -122,6 +138,41 @@ const palmReportBaseSchema = z.object({
   schemaVersion: z.literal("3.0"),
   reportId: z.string(),
   generatedAt: z.string(),
+  profile: z.object({
+    title: z.string(),
+    summary: z.string(),
+    scores: z.object({
+      personality: z.number().min(0).max(100),
+      career: z.number().min(0).max(100),
+      wealth: z.number().min(0).max(100),
+      relationship: z.number().min(0).max(100),
+      energy: z.number().min(0).max(100),
+    }),
+    discoveries: z.array(
+      z.object({
+        title: z.string(),
+        description: z.string(),
+        knowledgeNote: z.string(),
+      }),
+    ),
+    sections: z.object({
+      personality: z.string(),
+      career: z.string(),
+      wealth: z.string(),
+      relationship: z.string(),
+      energy: z.string(),
+      advice: z.string(),
+    }),
+    achievements: z.array(
+      z.object({
+        name: z.string(),
+        description: z.string(),
+      }),
+    ),
+    luckyKeyword: z.string(),
+    dailySuggestion: z.string(),
+    disclaimer: z.string(),
+  }),
   imageQuality: z.object({
     accepted: z.boolean(),
     score: z.number().min(0).max(100),
@@ -156,10 +207,16 @@ export const palmAiReportSchema = palmReportBaseSchema.extend({
 });
 
 export const palmReportSchema = palmReportBaseSchema.extend({
+  patternEngine: z.object({
+    summary: z.string(),
+    matchedPatterns: z.array(patternSummarySchema),
+  }),
+  sourceTrace: z.array(conclusionSourceSchema),
   lines: z.array(
     palmLineAnalysisSchema.extend({
       ...palmVisionLineSchema.shape,
       sources: palmLineSourcesSchema,
+      conclusionSources: z.array(conclusionSourceSchema),
     }),
   ),
 });
@@ -170,3 +227,4 @@ export type PalmLineId = z.infer<typeof lineIdSchema>;
 export type PalmLineSources = z.infer<typeof palmLineSourcesSchema>;
 export type PalmVisionStatus = z.infer<typeof visionStatusSchema>;
 export type PalmDetectionMethod = z.infer<typeof detectionMethodSchema>;
+export type PalmConclusionSource = z.infer<typeof conclusionSourceSchema>;

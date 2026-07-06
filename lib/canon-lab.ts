@@ -1,5 +1,4 @@
-import claims from "@/data/canon-lab/western/cheiro-palmistry-for-all/claims.json";
-import evidence from "@/data/canon-lab/western/cheiro-palmistry-for-all/evidence.json";
+import { getPalmCanonClaimsByLine } from "@/lib/palmistry/canon";
 import type { PalmLineId } from "@/lib/report-schema";
 
 type CanonLabClaim = {
@@ -29,28 +28,20 @@ export type WesternPalmistryReference = CanonLabClaim & {
   evidence: CanonLabEvidence[];
 };
 
-const lineTopicMap: Partial<Record<PalmLineId, string>> = {
-  "life-line": "life_line",
-  "head-line": "head_line",
-  "heart-line": "heart_line",
-  "fate-line": "fate_line",
-};
-
 export function getWesternPalmistryReferences(
   lineId: PalmLineId,
 ): WesternPalmistryReference[] {
-  const topicId = lineTopicMap[lineId];
-
-  if (!topicId) {
-    return [];
-  }
-
-  return (claims as CanonLabClaim[])
-    .filter((claim) => claim.topicId === topicId)
-    .map((claim) => ({
-      ...claim,
-      evidence: (evidence as CanonLabEvidence[]).filter(
-        (item) => item.claimId === claim.claimId,
-      ),
-    }));
+  return getPalmCanonClaimsByLine(lineId).map((claim) => ({
+    claimId: claim.claimId,
+    topicId: claim.topicId,
+    sourceTitle: claim.sourceTitle,
+    sourceAuthor: claim.sourceAuthor,
+    sourceUrl: claim.sourceUrl,
+    chapterOrSection: claim.chapterOrSection,
+    claimZh: claim.claimZh,
+    originalText: claim.originalText,
+    verificationStatus: claim.verificationStatus,
+    notes: claim.notes,
+    evidence: claim.evidence,
+  }));
 }

@@ -8,6 +8,13 @@ import { zodTextFormat } from "openai/helpers/zod";
 import { ProxyAgent } from "undici";
 import { PALM_SYSTEM_PROMPT, PALM_USER_PROMPT } from "@/lib/palm-prompt";
 import {
+  evaluatePalmRules,
+  type PalmFeatureInput,
+  type PalmDossier,
+} from "@/lib/palmistry/rules";
+import { getPalmCanonClaimsByLine } from "@/lib/palmistry/canon";
+import { detectPalmPatterns } from "@/lib/palmistry/pattern-engine";
+import {
   palmAiReportSchema,
   palmReportSchema,
   type PalmReport,
@@ -246,6 +253,87 @@ const failureReasonValues = new Set([
   "too_long",
 ]);
 
+function inferPalmFeatures(
+  visionMap: Map<PalmLineId, NormalizedVisionLine>,
+): PalmFeatureInput {
+  const line = (id: PalmLineId) => visionMap.get(id) ?? DEFAULT_ANNOTATIONS[id];
+  const life = line("life-line");
+  const head = line("head-line");
+  const heart = line("heart-line");
+  const fate = line("fate-line");
+
+  return {
+    lifeLine:
+      life.visionStatus === "unavailable"
+        ? "unclear"
+        : life.visionConfidence >= 0.72
+          ? "long"
+          : "medium",
+    headLine:
+      head.visionStatus === "unavailable"
+        ? "unclear"
+        : head.annotation.points.length >= 3 &&
+            Math.abs(
+              (head.annotation.points.at(-1)?.y ?? 0) -
+                (head.annotation.points[0]?.y ?? 0),
+            ) > 0.1
+          ? "curved"
+          : "straight",
+    heartLine:
+      heart.visionStatus === "unavailable"
+        ? "unclear"
+        : heart.failureReasons.includes("candidate_fragmented")
+          ? "forked"
+          : heart.visionConfidence >= 0.68
+            ? "deep"
+            : "light",
+    fateLine:
+      fate.visionStatus === "unavailable"
+        ? "absent"
+        : fate.visionConfidence >= 0.68
+          ? "strong"
+          : "weak",
+    palmShape: "unclear",
+    sunLine: "unclear",
+    specialMarks: [
+      heart.failureReasons.includes("candidate_fragmented") ? "fork" : "",
+      life.failureReasons.includes("candidate_fragmented") ? "island" : "",
+    ].filter(Boolean),
+  };
+}
+
+function mergePalmProfile(
+  aiProfile: PalmDossier | undefined,
+  ruleProfile: PalmDossier,
+): PalmDossier {
+  if (!aiProfile) return ruleProfile;
+
+  return {
+    ...ruleProfile,
+    ...aiProfile,
+    scores: {
+      ...ruleProfile.scores,
+      ...aiProfile.scores,
+    },
+    discoveries: (aiProfile.discoveries?.length
+      ? aiProfile.discoveries
+      : ruleProfile.discoveries
+    ).slice(0, 5),
+    achievements: (aiProfile.achievements?.length
+      ? aiProfile.achievements
+      : ruleProfile.achievements
+    ).slice(0, 5),
+    sections: {
+      ...ruleProfile.sections,
+      ...aiProfile.sections,
+    },
+    disclaimer:
+      aiProfile.disclaimer && aiProfile.disclaimer.includes("娱乐")
+        ? aiProfile.disclaimer
+        : ruleProfile.disclaimer,
+  };
+}
+
 function confidenceLabelFromScore(score: number): NormalizedVisionLine["confidence"] {
   if (score >= 0.72) return "high";
   if (score >= 0.46) return "medium";
@@ -294,6 +382,8 @@ function buildFastReport(
       ),
     ),
   );
+  const ruleProfile = evaluatePalmRules(inferPalmFeatures(merged));
+  const layerInsights = buildLayerInsights(merged);
 
   const lines = Array.from(merged.values()).map((visionLine) => {
     const meta = LINE_META[visionLine.id];
@@ -321,6 +411,11 @@ function buildFastReport(
       practicalAdvice: meta.advice,
       selfObservationQuestion: meta.question,
       sources: getPalmLineSources(visionLine.id),
+      conclusionSources: buildLineConclusionSources(
+        visionLine.id,
+        visionLine,
+        layerInsights.patternEngine.matchedPatterns,
+      ),
     };
   });
 
@@ -328,6 +423,12 @@ function buildFastReport(
     schemaVersion: "3.0",
     reportId: `fast_${randomUUID().slice(0, 8)}`,
     generatedAt: new Date().toISOString(),
+    profile: {
+      ...ruleProfile,
+      summary: `本次进入快速模式。从娱乐角度看，关键词是「${ruleProfile.luckyKeyword}」，适合先把掌纹当作自我观察卡。`,
+    },
+    patternEngine: layerInsights.patternEngine,
+    sourceTrace: layerInsights.sourceTrace,
     imageQuality: {
       accepted: score >= 52,
       score,
@@ -368,9 +469,9 @@ function buildFastReport(
       prohibitedAdviceDetected: false,
     },
     share: {
-      title: "我的 AI 掌心快速文化报告",
+      title: "我的 AI 掌纹档案",
       summary: "这是一份快速 Palm Canon 文化解读，用掌纹作为自我观察入口，而不是命运预测。",
-      oneLineSummary: "看见掌纹，也看见此刻可调整的自己。",
+      oneLineSummary: `我的掌纹关键词：${ruleProfile.luckyKeyword}`,
       tags: ["Palm Canon", "文化参考", "自我探索"],
     },
     lines,
@@ -535,6 +636,110 @@ function buildVisionPrompt(
   return `\n\nPalmVisionResult（由前端图像处理 pipeline 产生；模型只能读取这些结构化结果，不得自行看图、猜坐标或补线）：photoQuality={${qualitySummary}}; lines={${summary}}`;
 }
 
+function buildRulePrompt(profile: PalmDossier) {
+  return `\n\nPalm Master 本地知识库与规则引擎结果（必须结合，但不要说成科学判断）：${JSON.stringify(profile)}`;
+}
+
+function buildLineConclusionSources(
+  lineId: PalmLineId,
+  visionLine: NormalizedVisionLine,
+  matchedPatterns: PalmReport["patternEngine"]["matchedPatterns"],
+): PalmReport["lines"][number]["conclusionSources"] {
+  const linePatterns = matchedPatterns.filter((pattern) =>
+    pattern.lines.includes(lineId),
+  );
+  const canonClaims = getPalmCanonClaimsByLine(lineId);
+
+  return [
+    {
+      sourceType: "vision",
+      title: "Palm Vision 观察",
+      detail:
+        visionLine.visionStatus === "unavailable"
+          ? "本次照片未稳定识别该掌纹，报告会降低视觉结论权重。"
+          : `图像辅助结果为 ${visionLine.visionStatus}，置信度约 ${Math.round(visionLine.visionConfidence * 100)}%。`,
+    },
+    {
+      sourceType: "pattern",
+      title: "Pattern Engine 模式",
+      detail: linePatterns.length
+        ? linePatterns.map((pattern) => pattern.name).join("、")
+        : "未触发该掌纹的专属规则，采用通用掌纹知识解释。",
+    },
+    {
+      sourceType: "canon",
+      title: "Palm Canon 原典",
+      detail: canonClaims.length
+        ? canonClaims
+            .map(
+              (claim) =>
+                `${claim.sourceTitle} / ${claim.chapterOrSection} / ${claim.verificationStatus}`,
+            )
+            .join("；")
+        : "资料待校勘",
+    },
+    {
+      sourceType: "ai",
+      title: "AI 综合",
+      detail: "基于视觉观察、规则模式与可用 Canon 资料做现代中文转译，不生成原典原文。",
+    },
+  ];
+}
+
+function buildLayerInsights(
+  visionMap: Map<PalmLineId, NormalizedVisionLine>,
+): Pick<PalmReport, "patternEngine" | "sourceTrace"> {
+  const patternResult = detectPalmPatterns(inferPalmFeatures(visionMap));
+  const matchedPatterns = patternResult.matchedPatterns.map((pattern) => ({
+    id: pattern.id,
+    name: pattern.name,
+    level: pattern.level,
+    description: pattern.description,
+    lines: pattern.lines,
+    source: pattern.source,
+    safetyNote: pattern.safetyNote,
+  }));
+  const canonClaimCount = Array.from(visionMap.keys()).reduce(
+    (count, lineId) => count + getPalmCanonClaimsByLine(lineId).length,
+    0,
+  );
+
+  return {
+    patternEngine: {
+      summary: matchedPatterns.length
+        ? `Pattern Engine 本次识别出 ${matchedPatterns.length} 个娱乐文化模式；这些模式只用于组织报告，不作命运判断。`
+        : "Pattern Engine 未识别出稳定专属模式，本次以通用掌纹知识和照片质量诊断为主。",
+      matchedPatterns,
+    },
+    sourceTrace: [
+      {
+        sourceType: "vision",
+        title: "Palm Vision",
+        detail: "提供照片质量、可见度、置信度和失败原因；不承诺专业精准识别。",
+      },
+      {
+        sourceType: "pattern",
+        title: "Palm Pattern Engine",
+        detail: matchedPatterns.length
+          ? `触发 ${matchedPatterns.length} 个规则模式，用于生成 Palm Profile。`
+          : "未触发稳定规则模式，报告转为通用文化解释。",
+      },
+      {
+        sourceType: "canon",
+        title: "Palm Canon",
+        detail: canonClaimCount
+          ? `引用 ${canonClaimCount} 条已进入 Canon Lab 的 Western Palmistry Claim。`
+          : "相关原典资料待校勘，不由 AI 编造。",
+      },
+      {
+        sourceType: "ai",
+        title: "AI 综合",
+        detail: "负责把结构化观察、规则和资料转译为温和的现代中文报告。",
+      },
+    ],
+  };
+}
+
 export async function POST(request: Request) {
   let fallbackVisionMap = new Map<PalmLineId, NormalizedVisionLine>();
 
@@ -586,6 +791,16 @@ export async function POST(request: Request) {
     });
 
     const visionPrompt = buildVisionPrompt(visionMap, qualitySummary);
+    const ruleProfile = evaluatePalmRules(inferPalmFeatures(visionMap));
+    const layerInsights = buildLayerInsights(
+      new Map<PalmLineId, NormalizedVisionLine>([
+        ...(Object.entries(DEFAULT_ANNOTATIONS) as Array<
+          [PalmLineId, NormalizedVisionLine]
+        >),
+        ...visionMap,
+      ]),
+    );
+    const rulePrompt = buildRulePrompt(ruleProfile);
     const response = await client.responses.parse({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       input: [
@@ -593,7 +808,7 @@ export async function POST(request: Request) {
         {
           role: "user",
           content: [
-            { type: "input_text", text: `${PALM_USER_PROMPT}${visionPrompt}` },
+            { type: "input_text", text: `${PALM_USER_PROMPT}${visionPrompt}${rulePrompt}` },
           ],
         },
       ],
@@ -613,6 +828,9 @@ export async function POST(request: Request) {
 
     const report = palmReportSchema.parse({
       ...response.output_parsed,
+      profile: mergePalmProfile(response.output_parsed.profile, ruleProfile),
+      patternEngine: layerInsights.patternEngine,
+      sourceTrace: layerInsights.sourceTrace,
       reportId: `palm_${randomUUID().slice(0, 8)}`,
       generatedAt: new Date().toISOString(),
       lines: response.output_parsed.lines.map((line) => {
@@ -626,6 +844,11 @@ export async function POST(request: Request) {
               }
             : {}),
           sources: getPalmLineSources(line.id),
+          conclusionSources: buildLineConclusionSources(
+            line.id,
+            visionLine,
+            layerInsights.patternEngine.matchedPatterns,
+          ),
         };
       }),
     });
@@ -715,11 +938,20 @@ export async function POST(request: Request) {
       }
 
       if (error.status >= 500) {
-        return jsonError(
-          "AI服务暂时繁忙，请稍后重试。",
-          "openai_server_error",
-          502,
-        );
+        const fastReport = buildFastReport(fallbackVisionMap);
+        return Response.json({
+          report: fastReport,
+          error: {
+            type: "openai_server_error",
+            message: "AI服务暂时繁忙，请稍后重试。",
+            retryable: true,
+          },
+          fallback: {
+            type: "openai_server_error",
+            message: "AI服务暂时繁忙，已自动切换为快速报告。",
+            retryable: true,
+          },
+        });
       }
 
       if (error.status === 400) {

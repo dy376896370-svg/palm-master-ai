@@ -1,18 +1,18 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import {
   Aperture,
   Camera,
   Check,
   Clock3,
+  FileImage,
   ImagePlus,
   LoaderCircle,
   LockKeyhole,
   RotateCcw,
-  ShieldCheck,
   Sparkles,
-  SunMedium,
 } from "lucide-react";
 import type { PalmReport } from "@/lib/report-schema";
 import {
@@ -20,6 +20,11 @@ import {
   type PalmVisionResult,
 } from "./palm-vision-assist";
 import { ReportView } from "./report-view";
+import { Alert } from "./ui/alert";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
+import { Progress } from "./ui/progress";
 
 const schools = ["麻衣神相", "神相全编", "冰鉴", "周易", "Palmistry"];
 const ANALYSIS_TIMEOUT_MS = 70_000;
@@ -90,6 +95,14 @@ function getFriendlyErrorMessage(error?: AnalyzeResponse["error"], status?: numb
     case "openai_bad_request":
     case "empty_ai_report":
       return "AI 无法完成本次结构化分析，请换一张清晰照片重试。";
+    case "missing_image":
+      return "请先上传或拍摄一张手掌照片。";
+    case "unsupported_image_type":
+      return "图片格式不支持，请上传 JPG、PNG 或 WebP。";
+    case "image_too_large":
+      return "照片超过 8MB，请换一张较小的照片。";
+    case "invalid_image_file":
+      return "图片文件无法识别，请重新选择原始照片。";
     default:
       return error.message || getFallbackErrorMessage(status ?? 500);
   }
@@ -258,105 +271,104 @@ export function PalmAnalyzer() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden">
-      <div className="ambient ambient-one" />
-      <div className="ambient ambient-two" />
+    <main className="min-h-screen overflow-hidden bg-[#050506] text-zinc-50">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(255,255,255,.13),transparent_28%),radial-gradient(circle_at_78%_18%,rgba(201,166,84,.12),transparent_26%),linear-gradient(180deg,#08090b_0%,#050506_55%,#030304_100%)]" />
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
 
-      <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-5 py-6 sm:px-8">
+      <header className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
         <div className="flex items-center gap-3">
-          <div className="seal">掌</div>
+          <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white text-sm font-semibold text-zinc-950 shadow-[0_18px_60px_rgba(255,255,255,.14)]">
+            PM
+          </div>
           <div>
-            <p className="font-serif text-lg font-semibold tracking-[0.15em] text-stone-100">
-              AI手相大师
-            </p>
-            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-200/50">
-              Palm Master AI
-            </p>
+            <p className="text-sm font-semibold tracking-tight text-white">Palm Master</p>
+            <p className="text-[11px] text-zinc-500">AI Palm Canon Experience</p>
           </div>
         </div>
-        <div className="hidden items-center gap-2 text-xs text-stone-400 sm:flex">
-          <ShieldCheck className="h-4 w-4 text-amber-300/70" />
-          照片仅用于本次分析
-        </div>
+        <nav className="hidden items-center gap-2 md:flex">
+          {["Privacy-first", "No destiny claims", "Share-ready"].map((item) => (
+            <Badge key={item}>{item}</Badge>
+          ))}
+        </nav>
       </header>
 
-      <section className="relative z-10 mx-auto grid max-w-6xl gap-12 px-5 pb-20 pt-10 sm:px-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:pt-20">
-        <div>
-          <div className="eyebrow">
+      <section className="relative z-10 mx-auto grid max-w-7xl gap-10 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[1.04fr_.96fr] lg:items-center lg:pb-24 lg:pt-20">
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <Badge className="border-amber-200/15 bg-amber-100/5 text-amber-100">
             <Sparkles className="h-3.5 w-3.5" />
-            五大经典体系 · 联合解读
-          </div>
-          <h1 className="mt-6 font-serif text-5xl font-semibold leading-[1.12] tracking-tight text-stone-50 sm:text-7xl">
-            看见掌心纹理，
-            <br />
-            <span className="gold-text">读懂此刻的自己</span>
+            Entertainment culture report
+          </Badge>
+          <h1 className="mt-7 max-w-4xl text-5xl font-semibold leading-[0.98] tracking-[-0.06em] text-white sm:text-7xl lg:text-8xl">
+            Your palm, translated into a calm AI profile.
           </h1>
-          <p className="mt-6 max-w-xl text-base leading-8 text-stone-400 sm:text-lg">
-            上传手掌照片，AI 将从可见纹理出发，汇集东方古典相学与西方
-            Palmistry，为你生成一份可查看、可保存、可分享的娱乐文化报告。
+          <p className="mt-7 max-w-2xl text-base leading-8 text-zinc-400 sm:text-lg">
+            上传一张手掌照片，Palm Master 会先做照片质量诊断，再结合掌纹知识库、规则引擎与 AI 解读，生成一份漂亮、克制、可分享的娱乐文化档案。
           </p>
 
           <div className="mt-8 flex flex-wrap gap-2">
-            {schools.map((school, index) => (
-              <span className="school-chip" key={school}>
-                <span>{index + 1}</span>
+            {schools.map((school) => (
+              <Badge className="bg-white/[0.045]" key={school}>
                 {school}
-              </span>
+              </Badge>
             ))}
           </div>
 
-          <div className="mt-10 grid max-w-lg grid-cols-3 gap-5 border-t border-white/8 pt-6 text-sm text-stone-400">
-            <div><strong>01</strong><br />上传照片</div>
-            <div><strong>02</strong><br />AI观察</div>
-            <div><strong>03</strong><br />分享报告</div>
+          <div className="mt-12 grid max-w-2xl gap-3 sm:grid-cols-3">
+            {[
+              ["01", "Upload", "清晰掌心照片"],
+              ["02", "Analyze", "照片质量与纹理观察"],
+              ["03", "Share", "生成掌纹档案卡"],
+            ].map(([step, title, text]) => (
+              <Card className="p-5" key={step}>
+                <p className="text-xs text-zinc-500">{step}</p>
+                <h3 className="mt-3 text-sm font-medium text-white">{title}</h3>
+                <p className="mt-2 text-xs leading-5 text-zinc-500">{text}</p>
+              </Card>
+            ))}
           </div>
-        </div>
+        </motion.div>
 
-        <div className="upload-card">
-          <div className="corner corner-tl" />
-          <div className="corner corner-tr" />
-          <div className="corner corner-bl" />
-          <div className="corner corner-br" />
-
-          <div className="mb-5 flex items-center justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 24, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ delay: 0.12, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        >
+        <Card className="p-4 sm:p-5">
+          <div className="flex items-center justify-between px-1 pb-4">
             <div>
-              <p className="font-serif text-xl text-stone-100">掌纹观照</p>
-              <p className="mt-1 text-xs text-stone-500">请拍摄完整、清晰的手掌正面</p>
+              <p className="text-sm font-medium text-white">Create your palm profile</p>
+              <p className="mt-1 text-xs text-zinc-500">JPG / PNG / WebP · 最大 8MB</p>
             </div>
-            <Aperture className="h-6 w-6 text-amber-300/60" />
-          </div>
-
-          <div className="shooting-guide mb-4">
-            <p>为了获得更好的报告，请这样拍：</p>
-            <ul>
-              <li>掌心朝向镜头</li>
-              <li>手掌完全张开</li>
-              <li>掌心占画面 80%</li>
-              <li>光线均匀</li>
-              <li>不要开美颜</li>
-              <li>避免复杂背景</li>
-            </ul>
-          </div>
-
-          <div className="photo-guide mb-4">
-            <div><SunMedium /><span>光线均匀</span></div>
-            <div><Aperture /><span>手掌完整</span></div>
-            <div><Camera /><span>镜头平行</span></div>
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-white/[0.06] text-zinc-300">
+              <Aperture className="h-5 w-5" />
+            </div>
           </div>
 
           <button
-            className={`photo-stage ${preview ? "has-photo" : ""}`}
+            className="group relative grid min-h-[360px] w-full place-items-center overflow-hidden rounded-[24px] border border-dashed border-white/14 bg-black/40 transition hover:border-white/28"
             onClick={() => uploadRef.current?.click()}
             type="button"
           >
             {preview ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={preview} alt="待分析的手掌预览" />
+              <img
+                src={preview}
+                alt="待分析的手掌预览"
+                className="h-[360px] w-full object-contain"
+              />
             ) : (
-              <div className="flex flex-col items-center">
-                <div className="palm-mark">掌</div>
-                <p className="mt-5 text-sm font-medium text-stone-300">点击选择手掌照片</p>
-                <p className="mt-2 text-xs text-stone-600">JPG / PNG / WebP · 最大 8MB</p>
+              <div className="flex max-w-xs flex-col items-center px-8 text-center">
+                <div className="grid h-16 w-16 place-items-center rounded-3xl bg-white text-zinc-950 shadow-[0_18px_80px_rgba(255,255,255,.12)] transition group-hover:scale-105">
+                  <FileImage className="h-7 w-7" />
+                </div>
+                <p className="mt-6 text-base font-medium text-white">Drop in a palm photo</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-500">
+                  掌心朝向镜头，手掌完全张开，掌心占画面约 80%。
+                </p>
               </div>
             )}
           </button>
@@ -378,36 +390,49 @@ export function PalmAnalyzer() {
           />
 
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <button className="secondary-button" onClick={() => uploadRef.current?.click()} type="button">
+            <Button variant="secondary" onClick={() => uploadRef.current?.click()} type="button">
               <ImagePlus className="h-4 w-4" />上传照片
-            </button>
-            <button className="secondary-button" onClick={() => cameraRef.current?.click()} type="button">
+            </Button>
+            <Button variant="secondary" onClick={() => cameraRef.current?.click()} type="button">
               <Camera className="h-4 w-4" />打开摄像头
-            </button>
+            </Button>
           </div>
 
-          <button className="primary-button mt-3" disabled={loading || !file} onClick={analyze} type="button">
+          <Button
+            className="mt-3 w-full"
+            disabled={loading || !file}
+            onClick={analyze}
+            size="lg"
+            type="button"
+          >
             {loading ? (
-              <><LoaderCircle className="h-5 w-5 animate-spin" />{progressLabel}</>
+              <>
+                <LoaderCircle className="h-5 w-5 animate-spin" />
+                {progressLabel}
+              </>
             ) : (
-              <><Sparkles className="h-5 w-5" />开始分析</>
+              <>
+                <Sparkles className="h-5 w-5" />
+                生成掌纹档案
+              </>
             )}
-          </button>
+          </Button>
 
           {loading && (
-            <div className="analysis-progress mt-3">
-              <div className="analysis-progress-bar">
-                <span style={{ width: `${Math.min(92, 12 + elapsedSeconds * 2)}%` }} />
-              </div>
-              <div className="mt-2 flex items-center justify-between text-[11px] text-stone-500">
-                <span className="flex items-center gap-1.5"><Clock3 className="h-3 w-3" />通常需要 10–40 秒</span>
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4">
+              <Progress value={Math.min(92, 12 + elapsedSeconds * 2)} />
+              <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
+                <span className="flex items-center gap-1.5">
+                  <Clock3 className="h-3.5 w-3.5" />
+                  通常需要 10–40 秒
+                </span>
                 <span>{elapsedSeconds} 秒</span>
               </div>
             </div>
           )}
 
           {error && (
-            <div className="mt-3 rounded-lg bg-red-950/40 px-4 py-3 text-sm text-red-200">
+            <Alert className="mt-4 border-red-400/20 bg-red-950/25 text-red-100">
               <p>{error}</p>
               {file && (
                 <button
@@ -415,21 +440,22 @@ export function PalmAnalyzer() {
                   onClick={analyze}
                   type="button"
                 >
-                  重新尝试
+                  一键重试
                 </button>
               )}
-            </div>
+            </Alert>
           )}
 
           {notice && (
-            <div className="mt-3 rounded-lg border border-amber-300/15 bg-amber-950/20 px-4 py-3 text-sm leading-6 text-amber-100/80">
+            <Alert className="mt-4 border-amber-300/20 bg-amber-950/20 text-amber-100">
               {notice}
-            </div>
+            </Alert>
           )}
 
-          <label className="consent-row mt-4">
+          <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-xs leading-6 text-zinc-500">
             <input
               checked={consented}
+              className="mt-1 accent-white"
               onChange={(event) => setConsented(event.target.checked)}
               type="checkbox"
             />
@@ -438,70 +464,79 @@ export function PalmAnalyzer() {
             </span>
           </label>
 
-          <div className="mt-5 flex items-start gap-2 text-[11px] leading-5 text-stone-600">
-            <LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400/60" />
-            仅供传统文化参考与娱乐体验，不构成医疗、投资、婚姻、寿命、死亡或人生决策建议。
+          <div className="mt-4 flex items-start gap-2 px-1 text-[11px] leading-5 text-zinc-600">
+            <LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-500" />
+            仅供传统文化娱乐参考，不代表真实命运，不作为医疗、投资、婚姻、职业决策依据。
           </div>
-        </div>
+        </Card>
+        </motion.div>
       </section>
 
-      <section className="relative z-10 border-y border-white/6 bg-black/15">
-        <div className="mx-auto grid max-w-6xl gap-6 px-5 py-10 sm:grid-cols-3 sm:px-8">
+      <section className="relative z-10 border-y border-white/8 bg-white/[0.025]">
+        <div className="mx-auto grid max-w-7xl gap-px px-5 py-8 sm:grid-cols-3 sm:px-8">
           {[
-            ["如实观察", "只分析照片中可见的深浅、长度、分叉与清晰度。"],
-            ["拒绝断言", "使用可能与倾向性表达，不制造焦虑，不替你做决定。"],
-            ["模糊即重拍", "照片不清晰时直接提示重新拍摄，不编造掌纹内容。"],
-          ].map(([title, text], index) => (
-            <div className="principle" key={title}>
-              <span>0{index + 1}</span>
-              <div><h2>{title}</h2><p>{text}</p></div>
+            ["Photo quality first", "先判断清晰度、完整度和掌心占比。"],
+            ["Rules + Knowledge", "用掌纹知识库和规则引擎生成结构化档案。"],
+            ["Safe by design", "不做命运、医疗、投资或婚姻决策建议。"],
+          ].map(([title, text]) => (
+            <div className="px-0 py-4 sm:px-6" key={title}>
+              <div className="mb-4 h-px w-10 bg-white/30" />
+              <h3 className="text-sm font-medium text-white">{title}</h3>
+              <p className="mt-2 text-sm leading-6 text-zinc-500">{text}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="relative z-10 mx-auto max-w-6xl px-5 py-20 sm:px-8">
-        <div className="text-center">
-          <p className="section-kicker">开始之前</p>
-          <h2 className="mt-3 font-serif text-3xl text-stone-100 sm:text-4xl">
-            一次安心、克制的 AI 文化体验
+      <section className="relative z-10 mx-auto max-w-7xl px-5 py-20 sm:px-8">
+        <div className="max-w-2xl">
+          <Badge>Trust layer</Badge>
+          <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
+            A palm report that behaves like a modern AI product.
           </h2>
         </div>
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {[
-            ["不保存照片", "照片仅用于完成当前请求，本站不建立个人档案或历史记录。"],
-            ["看不清就拒绝", "手掌不完整或纹理模糊时，系统会要求重拍，而不是编造结果。"],
-            ["不替你做决定", "所有内容是文化参考和自我探索，不预测疾病、财富、寿命、死亡或关系结果。"],
+            ["不保存照片", "照片仅用于当前请求，不建立个人档案或历史记录。"],
+            ["看不清就重拍", "手掌不完整或纹理模糊时，系统会提示重试。"],
+            ["只做娱乐文化", "不预测疾病、财富、寿命、死亡或关系结果。"],
           ].map(([title, text]) => (
-            <article className="trust-card" key={title}>
-              <Check className="h-5 w-5 text-amber-300/70" />
-              <h3>{title}</h3>
-              <p>{text}</p>
-            </article>
+            <Card className="p-6" key={title}>
+              <Check className="h-5 w-5 text-zinc-300" />
+              <h3 className="mt-8 text-lg font-medium text-white">{title}</h3>
+              <p className="mt-3 text-sm leading-7 text-zinc-500">{text}</p>
+            </Card>
           ))}
         </div>
       </section>
 
       {report && (
-        <div id="report" className="relative z-10">
+        <motion.div
+          id="report"
+          className="relative z-10"
+          initial={{ opacity: 0, y: 28 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+        >
           <ReportView
             imageSrc={preview}
             initialVisionResult={visionResult}
+            onReset={reset}
             report={report}
           />
-          <div className="mx-auto max-w-4xl px-5 pb-24 text-center">
-            <button className="secondary-button inline-flex w-auto px-6" onClick={reset} type="button">
+          <div className="mx-auto max-w-5xl px-5 pb-24 text-center">
+            <Button variant="secondary" onClick={reset} type="button">
               <RotateCcw className="h-4 w-4" />分析另一张照片
-            </button>
+            </Button>
           </div>
-        </div>
+        </motion.div>
       )}
 
-      <footer className="relative z-10 border-t border-white/6 px-5 py-8 text-center text-xs text-stone-600">
-        <p>© {new Date().getFullYear()} Palm Master AI · 传统文化参考 · 娱乐体验 · 自我探索</p>
+      <footer className="relative z-10 border-t border-white/8 px-5 py-8 text-center text-xs text-zinc-600">
+        <p>© {new Date().getFullYear()} Palm Master · Entertainment culture reference</p>
         <div className="mt-3 flex justify-center gap-5">
-          <a className="hover:text-stone-400" href="/privacy">隐私说明</a>
-          <a className="hover:text-stone-400" href="/terms">使用条款</a>
+          <a className="hover:text-zinc-400" href="/privacy">隐私说明</a>
+          <a className="hover:text-zinc-400" href="/terms">使用条款</a>
         </div>
       </footer>
     </main>

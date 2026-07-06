@@ -6,13 +6,14 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   ),
   title: {
-    default: "AI手相大师｜五大体系联合解读",
-    template: "%s｜AI手相大师",
+    default: "Palm Master｜AI 掌纹娱乐文化档案",
+    template: "%s｜Palm Master",
   },
-  description: "上传手掌照片，获得掌纹辅助标注与五大文化体系联合解读。仅供娱乐与自我探索。",
+  description:
+    "上传手掌照片，获得照片质量诊断、掌纹知识库解读和可分享的 AI 掌纹娱乐文化档案。",
   openGraph: {
-    title: "AI手相大师",
-    description: "上传手掌照片，获得掌纹辅助标注与五大文化体系联合解读。",
+    title: "Palm Master",
+    description: "AI Palm Canon entertainment profile. 传统文化娱乐参考，不代表真实命运。",
     locale: "zh_CN",
     type: "website",
   },

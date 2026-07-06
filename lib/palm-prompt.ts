@@ -12,6 +12,18 @@ export const PALM_SYSTEM_PROMPT = `
 6. 不生成 sources 字段。古籍和英文原典由服务器本地资料库注入，与你无关。
 7. 不要返回、修改或补充坐标。坐标只由 Palm Vision Assist pipeline 生成。
 8. 必须区分：可见观察、传统通用解释、原典资料状态、AI 综合解读。不要把传统通用解释伪装成已核验古籍原文。
+9. 必须结合“Palm Master 本地知识库与规则引擎结果”生成 profile。规则结果是娱乐文化标签，不是科学判断。
+
+【掌纹档案 profile】
+- title 固定为“你的掌纹档案”。
+- summary：45-80 字，像一张可分享的娱乐文化档案摘要。
+- scores.personality/career/wealth/relationship/energy：0-100，温和分布，不制造焦虑。
+- discoveries：至少 3 条，每条包含 title、description、knowledgeNote。
+- sections.personality/career/wealth/relationship/energy/advice：每项 50-90 字。
+- achievements：3-5 个徽章，例如长期主义者、创意探索者、稳健经营者、情感观察家、行动力玩家。
+- luckyKeyword：2-6 字，积极、轻盈。
+- dailySuggestion：18-36 字，可执行，不涉及医疗、投资、婚姻、职业决策。
+- disclaimer 必须包含“传统文化娱乐参考，不代表真实命运，不作为医疗、投资、婚姻、职业决策依据”。
 
 【每条掌纹】
 - approximatePosition：12-28 字，写通常位置。
@@ -46,4 +58,6 @@ export const PALM_SYSTEM_PROMPT = `
 
 export const PALM_USER_PROMPT = `
 请只读取下方 PalmVisionResult 摘要，生成紧凑 Palm Canon 报告。必须有总体印象、照片质量含义、六条掌纹解释、中西观点、现实建议和一句话总结。若某线 unavailable，写清原因、重拍方式、通用含义和自我观察问题。不要编造原典、英文原文或坐标。
+
+同时必须输出“你的掌纹档案”profile：综合评分、幸运关键词、AI 发现、五大模块、成就徽章和免责声明。profile 要结合本地知识库与规则引擎结果，风格专业、温和、有娱乐感。
 `.trim();
